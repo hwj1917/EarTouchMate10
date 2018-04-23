@@ -30,7 +30,7 @@ android {
 
     sourceSets {
         main {
-            jniLibs.srcDirs = ['D:\\Projects\\EarTouch\\diffShow\\diffShow\\app\\src\\main\\jniLibs']
+            jniLibs.srcDirs = ['D:\\Projects\\GitHub\\diffShow\\diffShow\\app\\src\\main\\jniLibs']
         }
     }
 }

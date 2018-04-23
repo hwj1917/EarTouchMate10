@@ -11,6 +11,8 @@
 #include <sys/epoll.h>
 #include <string.h>
 
+#include <fstream>
+#include <algorithm>
 #include <deque>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -33,6 +35,12 @@
 #define GRID_RES_Y 32
 #define KCF_REFRESH_INTERVAL 25
 #define CHECK_SUM 50
+#define DIRTY_SUM 32300
+
+#define FROMFILE
+#define REALTIME
+//#define FROMDEV
+//#define RECORD
 
 using namespace cv;
 using namespace std;
@@ -57,7 +65,7 @@ struct FalseFrameData{
     struct FlaseTouchData touchData[10];
 };
 
-/////////////////////////////////////////////////for clacPoint()////////////////////////////////
+/////////////////////////////////////////////////for calcPoint()////////////////////////////////
 deque<Point> points_buffer;
 
 deque<Frame> frames;
@@ -96,11 +104,12 @@ int checkSpinSample = 0;
 int last_angle = -1, total_angle = 0, clkwise = 0, anticlkwise = 0;
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-jmethodID callBack_method;
+jmethodID callBack_method, notify_method;
 pthread_t thread_1, thread_2;
 JavaVM* g_jvm;
 jobject obj;
 int pipefd[2] = {-1,-1};
+string filename = "";
 
 void *run(void *args){
 
@@ -117,7 +126,7 @@ void *run(void *args){
         }
     }
 
-
+    bool touching = false;
 
     jshortArray diffdata = env->NewShortArray(DIFF_LENGTH*2+1+8);//diff + raw + num_touches + 4 (x, y) for each touch
     jshortArray rawdata = env->NewShortArray(DIFF_LENGTH);
@@ -192,12 +201,17 @@ void *run(void *args){
                     //new add
                     Frame f;
                     int16_t rawdata_after[32 * 18 + 32 * 18 + 1 + 8];
+                    int sum = 0;
                     for (int j = 0; j < 32; j++)
                         for (int k = 0; k < 18; k++)
                         {
                             f.capacity[j][k] = rawdata_after[j * 18 + k] = (jshort) (frameData.rawData[j * 18 + k] - 30000);
+#ifdef RECORD
+                            sum += f.capacity[j][k];
+#endif
                         }
 
+#ifdef REALTIME
                     f.frameID = frameID++;
                     pthread_mutex_lock(&frames_mutex);
                     frames.push_back(f);
@@ -205,7 +219,24 @@ void *run(void *args){
                         frames.pop_front();
                     }
                     pthread_mutex_unlock(&frames_mutex);
+#endif
 
+#ifdef RECORD
+                    env->SetShortArrayRegion(diffdata,0,DIFF_LENGTH*2+1+8,rawdata_after);
+                    if (sum > 1620000)
+                    {
+                        if (!touching)
+                            touching = true;
+                    } else
+                    {
+                        if (touching)
+                        {
+                            env->CallVoidMethod((jobject)args,callBack_method,diffdata, true);
+                            touching = false;
+                        }
+                    }
+                    env->CallVoidMethod((jobject)args,callBack_method,diffdata, false);
+#endif
                     /*
                     for (int i = 32 * 18; i < 32 * 18 * 2; i++) {
                         rawdata_after[i] = frameData.diffData[i] + 32768 + 100;
@@ -552,7 +583,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
 
     int sum = matSum<float>(input);                    //计算该帧电容和作为判断帧可靠性的依据
 
-    bool isDirty = (sum > 32300);//判断该帧是否足够可靠，以确定耳朵是否抬起
+    bool isDirty = (sum > DIRTY_SUM);//判断该帧是否足够可靠，以确定耳朵是否抬起
 
     /////////////////////////////////////check press//////////////////////////////////////////////
     if (!spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD) {
@@ -768,6 +799,18 @@ void calcPoint(Frame &frame, JNIEnv* env) {
     lastsum = sum;
 }
 
+long long swapLongLong(long long value)
+{
+    return (long long) (((value & 0x00000000000000FF) << 56) |
+           ((value & 0x000000000000FF00) << 40) |
+           ((value & 0x0000000000FF0000) << 24) |
+           ((value & 0x00000000FF000000) << 8) |
+           ((value & 0x000000FF00000000) >> 8) |
+           ((value & 0x0000FF0000000000) >> 24) |
+           ((value & 0x00FF000000000000) >> 40) |
+           ((value & 0xFF00000000000000) >> 56));
+}
+
 void* handleFrame(void* args)
 {
     JNIEnv *env;
@@ -782,6 +825,7 @@ void* handleFrame(void* args)
         }
     }
 
+#ifdef FROMDEV
     int lastID = -1;
     while (true) {
         pthread_mutex_lock(&frames_mutex);
@@ -803,6 +847,54 @@ void* handleFrame(void* args)
         }
         lastID = frame_current->frameID;
     }
+#endif
+
+#ifdef FROMFILE
+    frames.clear();
+    ifstream fin(filename, ios::binary);
+
+    if (fin) {
+        LOGD("open File Succeeded..");
+        long long tmp;
+        while (fin.read((char *) &tmp, sizeof(long long))) {
+            LOGD("open");
+            int cap[4];
+            Frame f;
+            int j = 0, k = 0;
+            for (int i = 0; i < 32 * 18 / 4; i++) {
+                fin.read((char *) &tmp, sizeof(long long));
+                tmp = swapLongLong(tmp);
+                cap[0] = tmp / 1000000000000LL;
+                tmp -= cap[0] * 1000000000000LL;
+                cap[1] = tmp / 100000000LL;
+                tmp -= cap[1] * 100000000LL;
+                cap[2] = tmp / 10000LL;
+                tmp -= cap[2] * 10000LL;
+                cap[3] = tmp;
+
+                for (int l = 0; l < 4; l++) {
+                    f.capacity[j][k] = cap[l];
+                    if (++k == 18)
+                        j++, k = 0;
+                }
+            }
+            frames.push_back(f);
+        }
+        fin.close();
+    } else{
+        LOGD("open File Failed..");
+    }
+
+
+    for (int i = 0; i < frames.size(); i++) {
+        calcPoint(frames[i], env);
+    }
+
+    env->CallVoidMethod((jobject)args,notify_method);
+
+#endif
+
+    return NULL;
 }
 
 
@@ -822,7 +914,15 @@ Java_com_example_diffshow_MainActivity_readDiffStart(JNIEnv *env, jobject instan
 
     pthread_mutex_init(&frames_mutex, NULL);
     env->GetJavaVM(&g_jvm); // 保存java虚拟机对象
+#ifdef REALTIME
     callBack_method = env->GetMethodID(env->GetObjectClass(instance),"processDiff","(IIZ)V");
+#endif
+
+#ifdef RECORD
+    callBack_method = env->GetMethodID(env->GetObjectClass(instance),"record","([SZ)V");
+#endif
+
+    notify_method = env->GetMethodID(env->GetObjectClass(instance),"notifiedEnd","()V");
 
     if(callBack_method == 0){
         __android_log_print(ANDROID_LOG_DEBUG,TAG,"find callBack_method error");
@@ -830,8 +930,15 @@ Java_com_example_diffshow_MainActivity_readDiffStart(JNIEnv *env, jobject instan
     }
     LOGD("Find Func...");
     obj = env->NewGlobalRef(instance);
+
+#ifdef FROMDEV
     pthread_create(&thread_1, NULL, run, obj);
+#endif
+
+#if defined(FROMDEV) && defined(REALTIME)
     pthread_create(&thread_2, NULL, handleFrame, obj);
+#endif
+
     LOGD("readDiffStart...");
 }
 
@@ -846,4 +953,39 @@ Java_com_example_diffshow_MainActivity_readDiffStop(JNIEnv *env, jobject instanc
         return;
     write(pipefd[1],"1",1);
     LOGD("readDiffStop...");
+}
+
+string jstring2str(JNIEnv* env, jstring jstr)
+{
+    char*   rtn   =   NULL;
+    jclass   clsstring   =   env->FindClass("java/lang/String");
+    jstring   strencode   =   env->NewStringUTF("GB2312");
+    jmethodID   mid   =   env->GetMethodID(clsstring,   "getBytes",   "(Ljava/lang/String;)[B");
+    jbyteArray   barr=   (jbyteArray)env->CallObjectMethod(jstr,mid,strencode);
+    jsize   alen   =   env->GetArrayLength(barr);
+    jbyte*   ba   =   env->GetByteArrayElements(barr,JNI_FALSE);
+    if(alen   >   0)
+    {
+        rtn   =   (char*)malloc(alen+1);
+        memcpy(rtn,ba,alen);
+        rtn[alen]=0;
+    }
+    env->ReleaseByteArrayElements(barr,ba,0);
+    if (rtn == NULL)
+    {
+        return "";
+    }
+    else {
+        string stemp(rtn);
+        free(rtn);
+        return stemp;
+    }
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_diffshow_MainActivity_readFile(JNIEnv *env, jobject instance, jstring fn) {
+    filename = string("/sdcard/eartouch/") + jstring2str(env, fn);
+    obj = env->NewGlobalRef(instance);
+    pthread_create(&thread_2, NULL, handleFrame, obj);
 }

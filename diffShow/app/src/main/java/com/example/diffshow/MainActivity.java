@@ -28,6 +28,7 @@ import android.support.v4.content.ContextCompat;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.support.v4.app.ActivityCompat;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -52,16 +53,18 @@ import java.util.Locale;
 import java.util.Vector;
 
 public class MainActivity extends Activity implements SensorEventListener {
+    public final boolean RECORD = false;
+
     public final String TAG = "READ_DIFF_JAVA";
     public final int MY_PERMISSIONS_REQUEST_WRITE_CONTACTS = 1;
-    int num_pixel = 32 * 18 * 2;
+    int num_pixel = 32 * 18;
     short diffData[] = new short[num_pixel];
     int amountSave = 120 * 120;
     short saveData[] = new short[num_pixel * amountSave];
     short sendData[] = new short[num_pixel / 2];
     Long[] timeDataLong = new Long[amountSave];
     String[] sensorData = new String[amountSave];
-    int countSave = 0;
+    int countSave = 0, sensorCountSave = 0;
 
     CapacityView capacityView;
     int screenWidth;
@@ -73,12 +76,13 @@ public class MainActivity extends Activity implements SensorEventListener {
     private Sensor sensor_accelerometer;
     private Sensor sensor_gyo;
     private boolean isrecording;
+    private boolean running;
     private int times_save = 0;
     private String username = "test";
     private String[] gesturenames = {"坐姿","站姿","走动","侧卧","仰卧"};
     private String[] taskperGesture = {"单手拇指", "单手食指", "双手拇指", "食指关节", "食指侧面", "手机边缘", "左耳45", "左耳0", "左耳-45", "左耳-90", "左耳半圈", "右耳45", "右耳0", "右耳-45", "右耳-90", "右耳半圈", "左耳肩膀夹住", "右耳肩膀夹住", "左右交换", "放口袋"};
-    //private String[] tasknames = {"单手拇指", "单手食指", "双手拇指","食指关节", "食指侧面","手机边缘","左耳90度","左耳45度","左耳0度","左耳-45度","左耳-90度","左耳边缘", "右耳90度","右耳45度","右耳0度","右耳-45度","右耳-90度","右耳边缘","交换90度","交换45度","交换0度","交换-45度","交换-90度",};
-    private String[] filenames = {"sit_singleThumb", "sit_singleIndex", "sit_doubleThumb", "sit_jointIndex", "sit_sideIndex", "sit_edgeFinger", "sit_left45", "sit_left0", "sit_left_45", "sit_left_90", "sit_leftEdge", "sit_right45", "sit_right0", "sit_right_45", "sit_right_90", "sit_rightEdge", "sit_leftclamp", "sit_rightclamp", "sit_switch_45", "sit_pocket", "stand_singleThumb", "stand_singleIndex", "stand_doubleThumb", "stand_jointIndex", "stand_sideIndex", "stand_edgeFinger", "stand_left45", "stand_left0", "stand_left_45", "stand_left_90", "stand_leftEdge", "stand_right45", "stand_right0", "stand_right_45", "stand_right_90", "stand_rightEdge", "stand_leftclamp", "stand_rightclamp", "stand_switch_45", "stand_pocket", "walk_singleThumb", "walk_singleIndex", "walk_doubleThumb", "walk_jointIndex", "walk_sideIndex", "walk_edgeFinger", "walk_left45", "walk_left0", "walk_left_45", "walk_left_90", "walk_leftEdge", "walk_right45", "walk_right0", "walk_right_45", "walk_right_90", "walk_rightEdge", "walk_leftclamp", "walk_rightclamp", "walk_switch_45", "walk_pocket", "lieside_singleThumb", "lieside_singleIndex", "lieside_doubleThumb", "lieside_jointIndex", "lieside_sideIndex", "lieside_edgeFinger", "lieside_left45", "lieside_left0", "lieside_left_45", "lieside_left_90", "lieside_leftEdge", "lieside_right45", "lieside_right0", "lieside_right_45", "lieside_right_90", "lieside_rightEdge", "lieside_leftclamp", "lieside_rightclamp", "lieside_switch_45", "lieside_pocket", "lieplan_singleThumb", "lieplan_singleIndex", "lieplan_doubleThumb", "lieplan_jointIndex", "lieplan_sideIndex", "lieplan_edgeFinger", "lieplan_left45", "lieplan_left0", "lieplan_left_45", "lieplan_left_90", "lieplan_leftEdge", "lieplan_right45", "lieplan_right0", "lieplan_right_45", "lieplan_right_90", "lieplan_rightEdge", "lieplan_leftclamp", "lieplan_rightclamp", "lieplan_switch_45", "lieplan_pocket", "finish"};
+    private String[] tasknames = {"滑动", "按压", "传感器"};
+    private String[] filenames = {"swipe", "press", "sensor"};
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
     private float[] rotation_vector = {0,0,0,0};
@@ -86,8 +90,13 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int finger_index = 6;
 
     private DrawView mDrawView;
+    private EditText mEditText;
     private Vibrator mVibrator;
     private TextToSpeech mTTS;
+    private int taskIndex = 0;
+    private int taskSum = 3;
+    private int taskTimes = 0;
+    private final int maxTimes = 5;
 
     //Used to load the 'native-lib' library on application startup.
     static {
@@ -124,10 +133,12 @@ public class MainActivity extends Activity implements SensorEventListener {
                 */
         isrecording = false;
 
-
-        LinearLayout ll = (LinearLayout)findViewById(R.id.linearLayout);
+        LinearLayout ll = findViewById(R.id.linearLayout);
         mDrawView = new DrawView(this);
-        ll.addView(mDrawView);
+        mEditText = new EditText(this);
+        ll.addView(mEditText);
+        if (!RECORD)
+            ll.addView(mDrawView);
 
         mVibrator = (Vibrator)this.getSystemService(VIBRATOR_SERVICE);
 
@@ -177,23 +188,27 @@ public class MainActivity extends Activity implements SensorEventListener {
     public void onAccuracyChanged(Sensor sensor, int i) {
 
     }
-    /*
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_VOLUME_UP:
-                Log.d("volume key", "up");
-
-                if (isrecording == true) {
+                if (RECORD) {
+                    if (isrecording) {
+                    /*
                     if (mediaPlayer.isPlaying() == true) {
                         mediaPlayer.pause();
                     }
-                    isrecording = false;
+                    */
+                        isrecording = false;
+                        mTTS.speak("记录结束", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        final String tn = filenames[taskIndex];
+                        new Thread(new Runnable() {
+                            public void run() {
+                                String filename = "/sdcard/eartouch/" + username + "_" + tn + ".txt";
 
-                    new Thread(new Runnable() {
-                        public void run() {
-                            String filename = "/sdcard/" + filenames[times_save] + "_" + username + ".txt";
-                            String sensorname = "/sdcard/sensor_" + filenames[times_save] + "_" + username + ".txt";
+                                //String sensorname = "/sdcard/sensor_" + filenames[times_save] + "_" + username + ".txt";
+                            /*
                             times_save += 1;
                             if(times_save != filenames.length - 5) {
                                 //int gesture_num = times_save / tasknames.length;
@@ -205,38 +220,51 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     gesture_num = times_save / taskperGesture.length;
                                     task_num = times_save % taskperGesture.length;
                                 }
+
                                 capacityView.task_name = taskperGesture[task_num];
                                 capacityView.gesture_name = gesturenames[gesture_num];
                                 capacityView.task_index = Integer.toString(times_save);
 
                             }
                             else {
+
                                 capacityView.task_name = "结束啦";
                                 capacityView.gesture_name = "";
+
                             }
                             capacityView.istapping = false;
                             capacityView.isrecording = false;
                             capacityView.resetCapacity();
                             capacityView.invalidate();
-                            Log.d("filename", filename);
-                            writeIntoFile(saveData, timeDataLong, countSave, filename);
-                            writeSensors(sensorData,countSave,sensorname);
+                            */
+                                if (tn.equals("sensor"))
+                                    writeSensors(sensorData, sensorCountSave, filename);
+                                else writeIntoFile(saveData, timeDataLong, countSave, filename);
+                            /*
                             if (times_save == filenames.length - 1) {
                                 capacityView.isrecording = true;
                                 capacityView.invalidate();
                             }
+                            */
+                                //writeIntoFile(saveData, timeData, countSave, filename);
+                                //writeIntoFile(saveDataString,timeData,countSave,filename);
+                            }
+                        }).start();
+                        if (++taskIndex == taskSum)
+                            taskIndex = 0;
+                        mEditText.setEnabled(true);
 
-                            //writeIntoFile(saveData, timeData, countSave, filename);
-                            //writeIntoFile(saveDataString,timeData,countSave,filename);
-                        }
-                    }).start();
-
-
-                } else {
-                    isrecording = true;
-                    countSave = 0;
-                    saveData = new short[amountSave * num_pixel];
-                    timeDataLong = new Long[amountSave];
+                    } else {
+                        isrecording = true;
+                        countSave = 0;
+                        sensorCountSave = 0;
+                        taskTimes = 0;
+                        saveData = new short[amountSave * num_pixel];
+                        timeDataLong = new Long[amountSave];
+                        username = mEditText.getText().toString();
+                        mEditText.setEnabled(false);
+                        mTTS.speak(tasknames[taskIndex] + "记录开始", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    /*
                     if (mediaPlayer.isPlaying() == false) {
                         mediaPlayer.start();
                         mediaPlayer.setLooping(true);
@@ -247,11 +275,27 @@ public class MainActivity extends Activity implements SensorEventListener {
                         capacityView.istapping = true;
                     }
                     capacityView.invalidate();
+                    */
+                    }
+                }
+                else
+                {
+                    if (!running) {
+                        running = true;
+                        String filename = mEditText.getText().toString();
+                        readFile(filename);
+                    }
                 }
                 return true;
             case KeyEvent.KEYCODE_VOLUME_DOWN:
-                Log.d("volume key", "down");
-                isrecording = false;
+                if (RECORD) {
+                    if (!isrecording) {
+                        if (--taskIndex < 0)
+                            taskIndex = taskSum - 1;
+                        mTTS.speak("重做" + tasknames[taskIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
+                    }
+                }
+                /*
                 if (mediaPlayer.isPlaying() == true) {
                     mediaPlayer.pause();
                 }
@@ -259,17 +303,18 @@ public class MainActivity extends Activity implements SensorEventListener {
                 capacityView.istapping = false;
                 capacityView.resetCapacity();
                 capacityView.invalidate();
+                */
                 return true;
             default:
                 break;
         }
         return super.onKeyDown(keyCode, event);
     }
-    */
-    public void writeSensors(String[] sensorData,int countSave, String filename){
+
+    public void writeSensors(String[] sensorData,int sum, String filename){
         try {
             FileOutputStream fileout = new FileOutputStream(new File(filename));
-            for (int i = 0; i < countSave; i++) {
+            for (int i = 0; i < sum; i++) {
                 fileout.write(sensorData[i].getBytes());
             }
             fileout.close();
@@ -283,7 +328,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         try {
             //Log.d("record","Write into files");
             FileOutputStream fileout = new FileOutputStream(new File(filename));
-            //Log.d("test", Integer.toString(countSave));
+            Log.d("hwjj", Integer.toString(countSave));
             for (int i = 0; i < countSave; i++) {
                 //Log.d("test","in while");
                 /*
@@ -322,9 +367,15 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     private void getAccelerometer(SensorEvent event) {
+        if (sensorCountSave == amountSave)
+        {
+            Log.d("sensor", "too many data.");
+            return;
+        }
+
         //Log.d("sensor","acc");
         final float alpha = 0.8f;
-                // Isolate the force of gravity with the low-pass filter.
+        // Isolate the force of gravity with the low-pass filter.
         gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0];
         gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1];
         gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2];
@@ -333,6 +384,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         linear_acceleration[0] = event.values[0] - gravity[0];
         linear_acceleration[1] = event.values[1] - gravity[1];
         linear_acceleration[2] = event.values[2] - gravity[2];
+
+
+        sensorData[sensorCountSave++] = Float.toString(linear_acceleration[0]) + " " + Float.toString(linear_acceleration[1]) + " " +Float.toString(linear_acceleration[2]) + '\n';
+
     }
 
     private void getRotation(SensorEvent event){
@@ -342,7 +397,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         rotation_vector[2] = event.values[2];
         rotation_vector[3] = event.values[3];
     }
-
 
     private void iniateSensors()
     {
@@ -563,10 +617,21 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
         new SendThread().start();
         */
-        /*
-        if(isrecording == false){
+
+    }
+
+    public void record(short[] data, boolean finish)
+    {
+        if(!isrecording)
+            return;
+
+        if (finish)
+        {
+            if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor"))
+                mTTS.speak(Integer.toString(taskTimes), TextToSpeech.QUEUE_FLUSH, null, "out");
             return;
         }
+
         //Log.d("data","come");
         if(countSave >= amountSave)
         {
@@ -577,21 +642,30 @@ public class MainActivity extends Activity implements SensorEventListener {
         long time=System.currentTimeMillis();
 
         timeDataLong[countSave] = time*10+data[num_pixel];
+
+        /*
         sensorData[countSave] = Float.toString(linear_acceleration[0]) + " " + Float.toString(linear_acceleration[1]) + " " +Float.toString(linear_acceleration[2]) + " " + Float.toString(rotation_vector[0]) + " " + Float.toString(rotation_vector[1]) + " " + Float.toString(rotation_vector[2]) + " " + Float.toString(rotation_vector[3]) + " ";
         for(int i = 0;i < 8;i++)
         {
             sensorData[countSave] += Integer.toString(data[num_pixel+i+1]) + " ";
         }
         sensorData[countSave] += "\n";
+        */
         //Log.d("data",Short.toString(data[num_pixel/2+5]));
         for(int i = 0;i < num_pixel;i++) {
             saveData[countSave * num_pixel + i] = data[i];
         }
-        countSave ++;
+        countSave++;
         // not update the capacity view
         //myHandler.obtainMessage(0).sendToTarget();
         //Log.d(TAG,"processDiff touchNum :"+data.touchNum);
-        */
+
+    }
+
+    public void notifiedEnd()
+    {
+        running = !running;
+
     }
 
     /**
@@ -600,6 +674,7 @@ public class MainActivity extends Activity implements SensorEventListener {
      */
     public native void readDiffStart();
     public native void readDiffStop();
+    public native void readFile(String filename);
 
     private Socket socket = null;
     private OutputStream outputStream;

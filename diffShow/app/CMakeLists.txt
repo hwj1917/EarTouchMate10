@@ -1,7 +1,7 @@
 # For more information about using CMake with Android Studio, read the
 # documentation: https://d.android.com/studio/projects/add-native-code.html
 
-set(pathToProject D:/Projects/EarTouch/diffShow/diffShow)
+set(pathToProject D:/Projects/GitHub/diffShow/diffShow)
 set(pathToOpenCv D:/ForCode/opencv4android)
 
 # Sets the minimum version of CMake required to build the native library.
