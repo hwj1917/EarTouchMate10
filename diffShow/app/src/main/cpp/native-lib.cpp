@@ -38,7 +38,7 @@
 #define DIRTY_SUM 32300
 
 //#define FROMFILE
-//#define REALTIME
+#define REALTIME
 #define FROMDEV
 #define RECORD
 
@@ -104,7 +104,7 @@ int checkSpinSample = 0;
 int last_angle = -1, total_angle = 0, clkwise = 0, anticlkwise = 0;
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-jmethodID callBack_method, notify_method;
+jmethodID callBack_method, record_method, notify_method;
 pthread_t thread_1, thread_2;
 JavaVM* g_jvm;
 jobject obj;
@@ -231,11 +231,11 @@ void *run(void *args){
                     {
                         if (touching)
                         {
-                            env->CallVoidMethod((jobject)args,callBack_method,diffdata, true);
+                            env->CallVoidMethod((jobject)args,record_method,diffdata, true);
                             touching = false;
                         }
                     }
-                    env->CallVoidMethod((jobject)args,callBack_method,diffdata, false);
+                    env->CallVoidMethod((jobject)args,record_method,diffdata, false);
 #endif
                     /*
                     for (int i = 32 * 18; i < 32 * 18 * 2; i++) {
@@ -289,7 +289,7 @@ int matSum(Mat& m)
 
 bool findPattern(Mat& m, Rect& pattern, RotatedRect& firstTouch)
 {
-
+/*
     if (checked < CHECK_SUM)                    //find pattern was done while check spin
     {
         if (checkSpinRectFlag) {
@@ -298,6 +298,7 @@ bool findPattern(Mat& m, Rect& pattern, RotatedRect& firstTouch)
         }
         return checkSpinRectFlag;
     }
+    */
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     findContours(m, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
@@ -609,7 +610,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         threshold(lanc, binaryImage, 70, 0, THRESH_TOZERO);        //gray
         binaryImage.convertTo(binaryImage, CV_8U);
 
-
+        /*
         //check spin. here we go
         if (!swipeFlag) swipeFlag = checkSwipe();
         if ((!swipeFlag && checked < CHECK_SUM) || spinFlag) {
@@ -621,7 +622,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
             }
         }
         //here we stop
-
+    */
         if (!last_dirty)                                         //触摸开始
         {
             //sendTCP(true);
@@ -919,7 +920,7 @@ Java_com_example_diffshow_MainActivity_readDiffStart(JNIEnv *env, jobject instan
 #endif
 
 #ifdef RECORD
-    callBack_method = env->GetMethodID(env->GetObjectClass(instance),"record","([SZ)V");
+    record_method = env->GetMethodID(env->GetObjectClass(instance),"record","([SZ)V");
 #endif
 
     notify_method = env->GetMethodID(env->GetObjectClass(instance),"notifiedEnd","()V");

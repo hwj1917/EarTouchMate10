@@ -54,6 +54,7 @@ import java.util.Vector;
 
 public class MainActivity extends Activity implements SensorEventListener {
     public final boolean RECORD = true;
+    public final int WIDTH = 1440, HEIGHT = 2560;
 
     public final String TAG = "READ_DIFF_JAVA";
     public final int MY_PERMISSIONS_REQUEST_WRITE_CONTACTS = 1;
@@ -77,13 +78,16 @@ public class MainActivity extends Activity implements SensorEventListener {
     private Sensor sensor_gyo;
     private boolean isrecording;
     private boolean running;
+    private boolean feedbackFlag = false;
     private int times_save = 0;
     private String username = "test";
     private String[] gesturenames = {"坐姿","站姿","走动","侧卧","仰卧"};
     private String[] taskperGesture = {"单手拇指", "单手食指", "双手拇指", "食指关节", "食指侧面", "手机边缘", "左耳45", "左耳0", "左耳-45", "左耳-90", "左耳半圈", "右耳45", "右耳0", "右耳-45", "右耳-90", "右耳半圈", "左耳肩膀夹住", "右耳肩膀夹住", "左右交换", "放口袋"};
-    private String[] tasknames = {"绝对点击", "相对点击", "悬停30", "悬停50", "悬停70", "悬停0", };
-    private String[] filenames = {"swipe", "press", "sensor"};
-    private int taskSum = 3;
+    private String[] tasknames = {"绝对点击左上", "绝对点击右上", "绝对点击左下", "绝对点击右下", "绝对点击中间", "相对点击左上", "相对点击右上", "相对点击左下","相对点击右下", "相对点击中间", "悬停30", "悬停50", "悬停70", "悬停1", "布局1", "布局2", "按压左上", "按压右上", "按压左下", "按压右下", "按压中间", "移动按压左上", "移动按压右上", "移动按压左下", "移动按压右下", "移动按压中间",
+    "前滑动", "后滑动", "上滑动", "下滑动", "单次前旋转", "单次后旋转", "连续前旋转", "连续后旋转", "前后摇动"};
+    private String[] filenames = {"abs-click1", "abs-click2", "abs-click3", "abs-click4", "abs-click5", "rel-click1", "rel-click2", "rel-click3", "rel-click4", "rel-click5", "hover30", "hover50", "hover70", "hover1", "layout0", "layout1", "press1", "press2", "press3", "press4", "press5", "move-press1", "move-press2", "move-press3", "move-press4", "move-press5",
+            "swipe1", "swipe2", "swipe3", "swipe4", "one-spin1", "one-spin2", "spins1", "spins2", "sensor"};
+    private int taskSum = 35;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
     private float[] rotation_vector = {0,0,0,0};
@@ -94,7 +98,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private EditText mEditText;
     private Vibrator mVibrator;
     private TextToSpeech mTTS;
-    private int taskIndex = 0;
+    private int taskIndex = 14;
     private int taskTimes = 0;
     private final int maxTimes = 5;
 
@@ -201,6 +205,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     }
                     */
                         isrecording = false;
+                        feedbackFlag = false;
                         mTTS.speak("记录结束", TextToSpeech.QUEUE_FLUSH, null, "out");
                         final String tn = filenames[taskIndex];
                         new Thread(new Runnable() {
@@ -263,6 +268,22 @@ public class MainActivity extends Activity implements SensorEventListener {
                         timeDataLong = new Long[amountSave];
                         username = mEditText.getText().toString();
                         mEditText.setEnabled(false);
+                        String tmp = filenames[taskIndex].substring(0, 3);
+                        if (tmp.equals("hov"))
+                        {
+                            CHECK_SUM = Integer.valueOf(filenames[taskIndex].substring(5, filenames[taskIndex].length()));
+                        }
+                        else if (tmp.equals("mov") || tmp.equals("lay"))
+                        {
+                            CHECK_SUM = 1;
+                        }
+                        else CHECK_SUM = 50;
+                        if (tmp.equals("hov") || tmp.equals("lay") || tmp.equals("mov"))
+                        {
+                            feedbackFlag = true;
+                        }
+                        else feedbackFlag = false;
+
                         mTTS.speak(tasknames[taskIndex] + "记录开始", TextToSpeech.QUEUE_FLUSH, null, "out");
                     /*
                     if (mediaPlayer.isPlaying() == false) {
@@ -439,8 +460,29 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
-    private boolean clear_flag = true;
-    private final int CHECK_SUM = 50;
+    private int[] layout_x = {5, 16};
+    private int[] layout_y = {6, 28};
+    private int index_x = -1, index_y = -1;
+
+    private void handlePointForLayout(int x, int y)
+    {
+        int layout_index = Integer.valueOf(filenames[taskIndex].substring(6, 7));
+        int lx = layout_x[layout_index], ly = layout_y[layout_index];
+        int x_interval = WIDTH / lx;
+        int y_interval = HEIGHT / ly;
+        int xx = x / x_interval, yy = y / y_interval;
+        if (xx == lx) xx--;
+        if (yy == ly) yy--;
+        if (xx != index_x || yy != index_y)
+        {
+            mTTS.speak(Integer.toString(yy + 1) + "行" + Integer.toString(xx + 1) + "列", TextToSpeech.QUEUE_FLUSH, null, "out");
+            index_x = xx;
+            index_y = yy;
+        }
+    }
+
+    private boolean clear_flag = true, notify_flag = false;
+    private int CHECK_SUM = 50;
     private final int TOUCH_MODE_CHECK = 0;
     private final int TOUCH_MODE_CLICK = TOUCH_MODE_CHECK + 1;
     private final int TOUCH_MODE_EXPLORE = TOUCH_MODE_CLICK + 1;
@@ -493,6 +535,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     public void processDiff(int x, int y, boolean down){
 
+        if (!feedbackFlag) return;
+
        if  (x <= -100) {
            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
            return;
@@ -506,14 +550,16 @@ public class MainActivity extends Activity implements SensorEventListener {
                 first_checked_x = x;
                 first_checked_y = y;
                 clear_flag = false;
+                notify_flag = false;
             }
 
-            switch (touch_mode)
-            {
+            switch (touch_mode) {
                 case TOUCH_MODE_CHECK:
                     checked++;
                     last_checked_x = x;
                     last_checked_y = y;
+
+                    /*
                     if (x == -1 && y == -1)
                     {
                         Log.d("hwjj", "press");
@@ -541,20 +587,40 @@ public class MainActivity extends Activity implements SensorEventListener {
                             mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                         }
                         checked = 0;
+                    }*/
+                    if (checked == CHECK_SUM) {
+                        touch_mode = TOUCH_MODE_EXPLORE;
+                        Log.d("hwjj", "explore");
+                        if (CHECK_SUM != 1) {
+                            mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
+                            mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                        }
+                        checked = 0;
                     }
                     break;
                 case TOUCH_MODE_PRESS:
                 case TOUCH_MODE_EXPLORE:
-                    if (x == -1 && y == -1)
-                    {
+                    if (x == -1 && y == -1) {
                         Log.d("hwjj", "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_PRESS;
-                    }
-                    else {
+                    } else {
                         DrawView.points_x.add(x);
                         DrawView.points_y.add(y);
                         mDrawView.postInvalidate();
+                    }
+                    last_checked_x = x;
+                    last_checked_y = y;
+                    if (filenames[taskIndex].substring(0, 3).equals("mov") && !notify_flag) {
+                        int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
+                        if (dx * dx + dy * dy > 800 * 800) {
+                            mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                            notify_flag = true;
+                        }
+                    }
+                    if (filenames[taskIndex].substring(0, 3).equals("lay")) {
+                        handlePointForLayout(x, y);
+
                     }
                     break;
                 case TOUCH_MODE_SPIN:
@@ -582,8 +648,8 @@ public class MainActivity extends Activity implements SensorEventListener {
             {
                 case TOUCH_MODE_CHECK:
                     if (checked > 3) {
-                        if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
-                        else {
+                        //if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
+                        //else {
                             touch_mode = TOUCH_MODE_CLICK;
                             if (y > 0 && y < 70)
                             {
@@ -595,7 +661,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 Log.d("hwjj", "click 2");
                                 mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
                             }
-                        }
+                        //}
                     }
                     break;
             }
