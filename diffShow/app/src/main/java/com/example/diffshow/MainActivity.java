@@ -53,7 +53,7 @@ import java.util.Locale;
 import java.util.Vector;
 
 public class MainActivity extends Activity implements SensorEventListener {
-    public final boolean RECORD = false;
+    public final boolean RECORD = true;
 
     public final String TAG = "READ_DIFF_JAVA";
     public final int MY_PERMISSIONS_REQUEST_WRITE_CONTACTS = 1;
@@ -81,8 +81,9 @@ public class MainActivity extends Activity implements SensorEventListener {
     private String username = "test";
     private String[] gesturenames = {"坐姿","站姿","走动","侧卧","仰卧"};
     private String[] taskperGesture = {"单手拇指", "单手食指", "双手拇指", "食指关节", "食指侧面", "手机边缘", "左耳45", "左耳0", "左耳-45", "左耳-90", "左耳半圈", "右耳45", "右耳0", "右耳-45", "右耳-90", "右耳半圈", "左耳肩膀夹住", "右耳肩膀夹住", "左右交换", "放口袋"};
-    private String[] tasknames = {"滑动", "按压", "传感器"};
+    private String[] tasknames = {"绝对点击", "相对点击", "悬停30", "悬停50", "悬停70", "悬停0", };
     private String[] filenames = {"swipe", "press", "sensor"};
+    private int taskSum = 3;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
     private float[] rotation_vector = {0,0,0,0};
@@ -94,7 +95,6 @@ public class MainActivity extends Activity implements SensorEventListener {
     private Vibrator mVibrator;
     private TextToSpeech mTTS;
     private int taskIndex = 0;
-    private int taskSum = 3;
     private int taskTimes = 0;
     private final int maxTimes = 5;
 
