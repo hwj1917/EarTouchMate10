@@ -12,6 +12,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 //import android.support.v7.app.AppCompatActivity;
@@ -83,11 +84,11 @@ public class MainActivity extends Activity implements SensorEventListener {
     private String username = "test";
     private String[] gesturenames = {"坐姿","站姿","走动","侧卧","仰卧"};
     private String[] taskperGesture = {"单手拇指", "单手食指", "双手拇指", "食指关节", "食指侧面", "手机边缘", "左耳45", "左耳0", "左耳-45", "左耳-90", "左耳半圈", "右耳45", "右耳0", "右耳-45", "右耳-90", "右耳半圈", "左耳肩膀夹住", "右耳肩膀夹住", "左右交换", "放口袋"};
-    private String[] tasknames = {"绝对点击左上", "绝对点击右上", "绝对点击左下", "绝对点击右下", "绝对点击中间", "相对点击左上", "相对点击右上", "相对点击左下","相对点击右下", "相对点击中间", "悬停30", "悬停50", "悬停70", "悬停1", "布局1", "布局2", "按压左上", "按压右上", "按压左下", "按压右下", "按压中间", "移动按压左上", "移动按压右上", "移动按压左下", "移动按压右下", "移动按压中间",
+    private String[] tasknames = {"绝对点击左上", "绝对点击右上", "绝对点击左下", "绝对点击右下", "绝对点击中间", "相对点击左上", "相对点击右上", "相对点击左下","相对点击右下", "相对点击中间", "悬停30", "悬停50", "悬停70", "布局1", "布局2", "按压左上", "按压右上", "按压左下", "按压右下", "按压中间", "移动按压左上", "移动按压右上", "移动按压左下", "移动按压右下", "移动按压中间",
     "前滑动", "后滑动", "上滑动", "下滑动", "单次前旋转", "单次后旋转", "连续前旋转", "连续后旋转", "前后摇动"};
-    private String[] filenames = {"abs-click1", "abs-click2", "abs-click3", "abs-click4", "abs-click5", "rel-click1", "rel-click2", "rel-click3", "rel-click4", "rel-click5", "hover30", "hover50", "hover70", "hover1", "layout0", "layout1", "press1", "press2", "press3", "press4", "press5", "move-press1", "move-press2", "move-press3", "move-press4", "move-press5",
+    private String[] filenames = {"abs-click1", "abs-click2", "abs-click3", "abs-click4", "abs-click5", "rel-click1", "rel-click2", "rel-click3", "rel-click4", "rel-click5", "hover30", "hover50", "hover70", "layout0", "layout1", "press1", "press2", "press3", "press4", "press5", "move-press1", "move-press2", "move-press3", "move-press4", "move-press5",
             "swipe1", "swipe2", "swipe3", "swipe4", "one-spin1", "one-spin2", "spins1", "spins2", "sensor"};
-    private int taskSum = 35;
+    private int taskSum = 34;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
     private float[] rotation_vector = {0,0,0,0};
@@ -98,7 +99,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private EditText mEditText;
     private Vibrator mVibrator;
     private TextToSpeech mTTS;
-    private int taskIndex = 14;
+    private int taskIndex = 0;
     private int taskTimes = 0;
     private final int maxTimes = 5;
 
@@ -168,6 +169,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         */
         readDiffStart();
         //new ConnectThread().start();
+
+        File file = new File(Environment.getExternalStorageDirectory().getPath() + "/eartouch");
+        if (!file.exists())
+            file.mkdirs();
     }
 
 
@@ -210,7 +215,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         final String tn = filenames[taskIndex];
                         new Thread(new Runnable() {
                             public void run() {
-                                String filename = "/sdcard/eartouch/" + username + "_" + tn + ".txt";
+                                String filename = Environment.getExternalStorageDirectory().getPath() + "/eartouch/" + username + "_" + tn + ".txt";
 
                                 //String sensorname = "/sdcard/sensor_" + filenames[times_save] + "_" + username + ".txt";
                             /*
@@ -460,8 +465,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
-    private int[] layout_x = {5, 16};
-    private int[] layout_y = {6, 28};
+    private int[] layout_x = {5, 18};
+    private int[] layout_y = {6, 32};
     private int index_x = -1, index_y = -1;
 
     private void handlePointForLayout(int x, int y)
@@ -541,7 +546,7 @@ public class MainActivity extends Activity implements SensorEventListener {
            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
            return;
        }
-
+        String fn = filenames[taskIndex];
         if (down) {
             if (clear_flag)
             {
@@ -600,7 +605,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     break;
                 case TOUCH_MODE_PRESS:
                 case TOUCH_MODE_EXPLORE:
-                    if (x == -1 && y == -1) {
+                    if (x == -1 && y == -1 && fn.substring(0, 3).equals("lay")) {
                         Log.d("hwjj", "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_PRESS;
@@ -611,16 +616,15 @@ public class MainActivity extends Activity implements SensorEventListener {
                     }
                     last_checked_x = x;
                     last_checked_y = y;
-                    if (filenames[taskIndex].substring(0, 3).equals("mov") && !notify_flag) {
+                    if (fn.substring(0, 3).equals("mov") && fn.charAt(fn.length() - 1) != '5' && !notify_flag) {
                         int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
                         if (dx * dx + dy * dy > 800 * 800) {
                             mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                             notify_flag = true;
                         }
                     }
-                    if (filenames[taskIndex].substring(0, 3).equals("lay")) {
+                    if (fn.substring(0, 3).equals("lay")) {
                         handlePointForLayout(x, y);
-
                     }
                     break;
                 case TOUCH_MODE_SPIN:
