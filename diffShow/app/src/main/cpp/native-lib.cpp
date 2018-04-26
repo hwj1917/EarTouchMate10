@@ -37,10 +37,10 @@
 #define CHECK_SUM 50
 #define DIRTY_SUM 32300
 
-//#define FROMFILE
-//#define REALTIME
-#define FROMDEV
-#define RECORD
+#define FROMFILE
+#define REALTIME
+//#define FROMDEV
+//#define RECORD
 
 using namespace cv;
 using namespace std;
