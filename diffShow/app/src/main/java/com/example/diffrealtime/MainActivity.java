@@ -118,7 +118,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         LinearLayout ll = findViewById(R.id.linearLayout);
         mDrawView = new DrawView(this);
         mEditText = new EditText(this);
-        ll.addView(mEditText);
+        //ll.addView(mEditText);
         if (!RECORD)
             ll.addView(mDrawView);
 
