@@ -1,16 +1,10 @@
-package com.example.diffshow;
+package com.example.diffrealtime;
 
-import android.app.Notification;
-import android.app.Service;
-import android.content.Intent;
-import android.app.PendingIntent;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Point;
 import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
-import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Message;
@@ -20,8 +14,6 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.Window;
 import android.view.WindowManager;
 import android.support.v4.content.ContextCompat;
@@ -30,29 +22,17 @@ import android.content.pm.PackageManager;
 import android.support.v4.app.ActivityCompat;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.view.KeyEvent;
 import android.hardware.Sensor;
 import android.hardware.SensorEventListener;
 
-import com.example.diffrealtime.R;
-
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FilterInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Locale;
-import java.util.Vector;
 
 public class MainActivity extends Activity implements SensorEventListener {
     public final boolean RECORD = false;

@@ -37,9 +37,9 @@
 #define CHECK_SUM 50
 #define DIRTY_SUM 32300
 
-#define FROMFILE
+//#define FROMFILE
 #define REALTIME
-//#define FROMDEV
+#define FROMDEV
 //#define RECORD
 
 using namespace cv;
@@ -900,7 +900,7 @@ void* handleFrame(void* args)
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_diffshow_MainActivity_readDiffStart(JNIEnv *env, jobject instance) {
+Java_com_example_diffrealtime_MainActivity_readDiffStart(JNIEnv *env, jobject instance) {
 
 
 /*
@@ -946,7 +946,7 @@ Java_com_example_diffshow_MainActivity_readDiffStart(JNIEnv *env, jobject instan
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_diffshow_MainActivity_readDiffStop(JNIEnv *env, jobject instance) {
+Java_com_example_diffrealtime_MainActivity_readDiffStop(JNIEnv *env, jobject instance) {
 
     // TODO
     if(pipefd[1] < 0)
