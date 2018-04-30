@@ -1,16 +1,10 @@
 package com.example.diffshow;
 
-import android.app.Notification;
-import android.app.Service;
-import android.content.Intent;
-import android.app.PendingIntent;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Point;
 import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
-import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Environment;
 import android.os.Handler;
@@ -21,8 +15,6 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.Window;
 import android.view.WindowManager;
 import android.support.v4.content.ContextCompat;
@@ -31,27 +23,17 @@ import android.content.pm.PackageManager;
 import android.support.v4.app.ActivityCompat;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.view.KeyEvent;
 import android.hardware.Sensor;
 import android.hardware.SensorEventListener;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FilterInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Locale;
-import java.util.Vector;
 
 public class MainActivity extends Activity implements SensorEventListener {
     public final boolean RECORD = true;
@@ -101,7 +83,11 @@ public class MainActivity extends Activity implements SensorEventListener {
     private TextToSpeech mTTS;
     private int taskIndex = 0;
     private int taskTimes = 0;
-    private final int maxTimes = 5;
+    private final int maxTimes = 6;
+
+    private boolean hasInit = false;
+    private long lastNotifyTime;
+
 
     //Used to load the 'native-lib' library on application startup.
     static {
@@ -127,16 +113,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         setContentView(R.layout.activity_main);
 
         getPermissions();
-        iniateSensors();
-        times_save = 0;
-
-        /*
-        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-        audioManager.setSpeakerphoneOn(false);
-        mediaPlayer = MediaPlayer.create(this, R.raw.audio);
-                */
-        isrecording = false;
+        initSensors();
 
         LinearLayout ll = findViewById(R.id.linearLayout);
         mDrawView = new DrawView(this);
@@ -145,14 +122,25 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (!RECORD)
             ll.addView(mDrawView);
 
-        mVibrator = (Vibrator)this.getSystemService(VIBRATOR_SERVICE);
+        if (!hasInit) {
+            times_save = 0;
+            lastNotifyTime = System.currentTimeMillis();
+        /*
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+        audioManager.setSpeakerphoneOn(false);
+        mediaPlayer = MediaPlayer.create(this, R.raw.audio);
+                */
+            isrecording = false;
 
-        mTTS = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
-            @Override
-            public void onInit(int status) {
-                mTTS.setLanguage(Locale.CHINA);
-            }
-        });
+            mVibrator = (Vibrator) this.getSystemService(VIBRATOR_SERVICE);
+
+            mTTS = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+                @Override
+                public void onInit(int status) {
+                    mTTS.setLanguage(Locale.CHINA);
+                }
+            });
 
         /*
         capacityView = findViewById(R.id.capacityView);
@@ -167,12 +155,14 @@ public class MainActivity extends Activity implements SensorEventListener {
         capacityView.gesture_name = gesturenames[times_save/taskperGesture.length];
         capacityView.task_index = Integer.toString(times_save);
         */
-        readDiffStart();
-        //new ConnectThread().start();
+            readDiffStart();
+            //new ConnectThread().start();
 
-        File file = new File(Environment.getExternalStorageDirectory().getPath() + "/eartouch");
-        if (!file.exists())
-            file.mkdirs();
+            File file = new File(Environment.getExternalStorageDirectory().getPath() + "/eartouch");
+            if (!file.exists())
+                file.mkdirs();
+            hasInit = true;
+        }
     }
 
 
@@ -215,8 +205,11 @@ public class MainActivity extends Activity implements SensorEventListener {
                         final String tn = filenames[taskIndex];
                         new Thread(new Runnable() {
                             public void run() {
-                                String filename = Environment.getExternalStorageDirectory().getPath() + "/eartouch/" + username + "_" + tn + ".txt";
-
+                                String dir = Environment.getExternalStorageDirectory().getPath() + "/eartouch/" + username + "_";
+                                File file = new File(dir);
+                                if (!file.exists())
+                                    file.mkdirs();
+                                String filename = dir + "/" + username + "_" + tn + ".txt";
                                 //String sensorname = "/sdcard/sensor_" + filenames[times_save] + "_" + username + ".txt";
                             /*
                             times_save += 1;
@@ -424,7 +417,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         rotation_vector[3] = event.values[3];
     }
 
-    private void iniateSensors()
+    private void initSensors()
     {
         sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
         sensor_accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
@@ -697,8 +690,15 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         if (finish)
         {
-            if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor"))
-                mTTS.speak(Integer.toString(taskTimes), TextToSpeech.QUEUE_FLUSH, null, "out");
+            long t = System.currentTimeMillis();
+            if (t - lastNotifyTime > 1000) {
+                lastNotifyTime = t;
+                if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor")) {
+                    if (taskTimes == 1) mTTS.speak("尝试结束", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    else
+                        mTTS.speak(Integer.toString(taskTimes - 1), TextToSpeech.QUEUE_FLUSH, null, "out");
+                }
+            }
             return;
         }
 
@@ -711,7 +711,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         long time=System.currentTimeMillis();
 
-        timeDataLong[countSave] = time*10+data[num_pixel];
+        timeDataLong[countSave] = time * 10;
 
         /*
         sensorData[countSave] = Float.toString(linear_acceleration[0]) + " " + Float.toString(linear_acceleration[1]) + " " +Float.toString(linear_acceleration[2]) + " " + Float.toString(rotation_vector[0]) + " " + Float.toString(rotation_vector[1]) + " " + Float.toString(rotation_vector[2]) + " " + Float.toString(rotation_vector[3]) + " ";
