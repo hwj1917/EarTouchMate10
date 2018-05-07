@@ -67,10 +67,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     private String[] gesturenames = {"坐姿","站姿","走动","侧卧","仰卧"};
     private String[] taskperGesture = {"单手拇指", "单手食指", "双手拇指", "食指关节", "食指侧面", "手机边缘", "左耳45", "左耳0", "左耳-45", "左耳-90", "左耳半圈", "右耳45", "右耳0", "右耳-45", "右耳-90", "右耳半圈", "左耳肩膀夹住", "右耳肩膀夹住", "左右交换", "放口袋"};
     private String[] tasknames = {"绝对点击左上", "绝对点击右上", "绝对点击左下", "绝对点击右下", "绝对点击中间", "相对点击左上", "相对点击右上", "相对点击左下","相对点击右下", "相对点击中间", "悬停30", "悬停50", "悬停70", "布局1", "布局2", "按压左上", "按压右上", "按压左下", "按压右下", "按压中间", "移动按压左上", "移动按压右上", "移动按压左下", "移动按压右下", "移动按压中间",
-    "前滑动", "后滑动", "上滑动", "下滑动", "单次前旋转", "单次后旋转", "连续前旋转", "连续后旋转", "前后摇动"};
+    "前滑动", "后滑动", "上滑动", "下滑动", "单次前旋转", "单次后旋转", "连续前旋转", "连续后旋转", "前后摇动", "自由"};
     private String[] filenames = {"abs-click1", "abs-click2", "abs-click3", "abs-click4", "abs-click5", "rel-click1", "rel-click2", "rel-click3", "rel-click4", "rel-click5", "hover30", "hover50", "hover70", "layout0", "layout1", "press1", "press2", "press3", "press4", "press5", "move-press1", "move-press2", "move-press3", "move-press4", "move-press5",
-            "swipe1", "swipe2", "swipe3", "swipe4", "one-spin1", "one-spin2", "spins1", "spins2", "sensor"};
-    private int taskSum = 34;
+            "swipe1", "swipe2", "swipe3", "swipe4", "one-spin1", "one-spin2", "spins1", "spins2", "sensor", "free"};
+    private int taskSum = 35;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
     private float[] rotation_vector = {0,0,0,0};
@@ -81,7 +81,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private EditText mEditText;
     private Vibrator mVibrator;
     private TextToSpeech mTTS;
-    private int taskIndex = 0;
+    private int taskIndex = 13;
     private int taskTimes = 0;
     private final int maxTimes = 6;
 
@@ -533,12 +533,14 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     public void processDiff(int x, int y, boolean down){
 
-        if (!feedbackFlag) return;
 
        if  (x <= -100) {
            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
            return;
        }
+
+        if (!feedbackFlag) return;
+
         String fn = filenames[taskIndex];
         if (down) {
             if (clear_flag)
@@ -693,7 +695,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             long t = System.currentTimeMillis();
             if (t - lastNotifyTime > 1000) {
                 lastNotifyTime = t;
-                if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor")) {
+                if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor") && !filenames[taskIndex].equals("layout0") && !filenames[taskIndex].equals("layout1")) {
                     if (taskTimes == 1) mTTS.speak("尝试结束", TextToSpeech.QUEUE_FLUSH, null, "out");
                     else
                         mTTS.speak(Integer.toString(taskTimes - 1), TextToSpeech.QUEUE_FLUSH, null, "out");

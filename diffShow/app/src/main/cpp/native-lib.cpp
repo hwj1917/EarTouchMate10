@@ -86,7 +86,8 @@ Ptr<TrackerKCF> tracker[2];
 
 Point firstPoint = Point(0, 0);
 pthread_t update_threads[2];
-const int MIN_X = 175, MAX_X = 1200, MIN_Y = 270, MAX_Y = 2550;
+const int MIN_X = 0, MAX_X = 1439, MIN_Y = 0, MAX_Y = 2559;
+//const int MIN_X = 175, MAX_X = 1200, MIN_Y = 270, MAX_Y = 2550;
 int last = 0, now = 1, frame_count = 0;
 int tracker_last = 1, tracker_now = 0;
 Rect2d box, box_last;
@@ -348,6 +349,16 @@ void calcFirstPoint(RotatedRect& rect, Point& firstPoint) {
     //double pointCy = pointB.y + pointC2y;
     firstPoint.x = pointB.x - pointC2x;
     firstPoint.y = pointB.y + pointC2y;
+}
+
+void calcFirstPoint(Mat& m, RotatedRect& rect, Point& firstPoint)
+{
+    double min, max;
+    Point minp, maxp;
+    //Rect r = rect.boundingRect();
+    //Mat tmp(m, r);
+    minMaxLoc(m, &min, &max, &minp, &maxp);
+    firstPoint = maxp;
 }
 
 void restrict(Point& p, int lx, int rx, int ly, int ry)
@@ -633,7 +644,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
             if (has_find_pattern)
             {
                 Point want;
-                calcFirstPoint(firstTouch, want);
+                calcFirstPoint(binaryImage, firstTouch, want);
                 restrict(want, 0, lenx, 0, leny);
 
                 trackerInit(tracker[0], binaryImage, patternRect);
