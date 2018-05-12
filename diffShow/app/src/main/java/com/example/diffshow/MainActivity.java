@@ -3,6 +3,7 @@ package com.example.diffshow;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Point;
 import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
 import android.media.MediaPlayer;
@@ -31,8 +32,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.Inet4Address;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends Activity implements SensorEventListener {
@@ -66,11 +73,11 @@ public class MainActivity extends Activity implements SensorEventListener {
     private String username = "test";
     private String[] gesturenames = {"坐姿","站姿","走动","侧卧","仰卧"};
     private String[] taskperGesture = {"单手拇指", "单手食指", "双手拇指", "食指关节", "食指侧面", "手机边缘", "左耳45", "左耳0", "左耳-45", "左耳-90", "左耳半圈", "右耳45", "右耳0", "右耳-45", "右耳-90", "右耳半圈", "左耳肩膀夹住", "右耳肩膀夹住", "左右交换", "放口袋"};
-    private String[] tasknames = {"绝对点击左上", "绝对点击右上", "绝对点击左下", "绝对点击右下", "绝对点击中间", "相对点击左上", "相对点击右上", "相对点击左下","相对点击右下", "相对点击中间", "悬停30", "悬停50", "悬停70", "布局1", "布局2", "按压左上", "按压右上", "按压左下", "按压右下", "按压中间", "移动按压左上", "移动按压右上", "移动按压左下", "移动按压右下", "移动按压中间",
-    "前滑动", "后滑动", "上滑动", "下滑动", "单次前旋转", "单次后旋转", "连续前旋转", "连续后旋转", "前后摇动", "自由"};
-    private String[] filenames = {"abs-click1", "abs-click2", "abs-click3", "abs-click4", "abs-click5", "rel-click1", "rel-click2", "rel-click3", "rel-click4", "rel-click5", "hover30", "hover50", "hover70", "layout0", "layout1", "press1", "press2", "press3", "press4", "press5", "move-press1", "move-press2", "move-press3", "move-press4", "move-press5",
-            "swipe1", "swipe2", "swipe3", "swipe4", "one-spin1", "one-spin2", "spins1", "spins2", "sensor", "free"};
-    private int taskSum = 35;
+    private String[] tasknames = {"按压中间", "移动按压上", "移动按压下",
+    "前滑动", "后滑动", "上滑动", "下滑动", "前上滑动", "后上滑动", "前下滑动", "后下滑动", "单次前旋转", "单次后旋转", "布局2航1列", "布局2航2列", "布局3航2列", "布局3航3列", "布局4航3列", "布局4航4列", "布局5航4列", "布局5航5列", "布局6航5列", "策略2布局2航1列", "策略2布局2航2列", "策略2布局3航2列", "策略2布局3航3列", "策略2布局4航3列", "策略2布局4航4列", "策略2布局5航4列", "策略2布局5航5列", "策略2布局6航5列", "自由"};
+    private String[] filenames = {"press", "move-press1", "move-press2",
+            "swipe1", "swipe2", "swipe3", "swipe4", "swipe5", "swipe6", "swipe7", "swipe8", "one-spin1", "one-spin2", "layout0", "layout1", "layout2", "layout3", "layout4", "layout5", "layout6", "layout7", "layout8", "layout9", "layout10", "layout11", "layout12", "layout13", "layout14", "layout15", "layout16", "layout17", "free"};
+    private int taskSum = 32;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
     private float[] rotation_vector = {0,0,0,0};
@@ -81,13 +88,19 @@ public class MainActivity extends Activity implements SensorEventListener {
     private EditText mEditText;
     private Vibrator mVibrator;
     private TextToSpeech mTTS;
-    private int taskIndex = 13;
+    private int taskIndex = 0;
     private int taskTimes = 0;
     private final int maxTimes = 6;
 
     private boolean hasInit = false;
     private long lastNotifyTime;
 
+    private int[] layout_x = {1, 2, 2, 3, 3, 4, 4, 5, 5};
+    private int[] layout_y = {2, 2, 3, 3, 4, 4, 5, 5, 6};
+    private int[] layout_repeat_times = {3, 3, 2, 1, 1, 1, 1, 1, 1};
+    private int index_x = -1, index_y = -1;
+    private int layout_index, lx, ly;
+    private ArrayList<Integer> pointSeq = new ArrayList<>();
 
     //Used to load the 'native-lib' library on application startup.
     static {
@@ -194,11 +207,6 @@ public class MainActivity extends Activity implements SensorEventListener {
             case KeyEvent.KEYCODE_VOLUME_UP:
                 if (RECORD) {
                     if (isrecording) {
-                    /*
-                    if (mediaPlayer.isPlaying() == true) {
-                        mediaPlayer.pause();
-                    }
-                    */
                         isrecording = false;
                         feedbackFlag = false;
                         mTTS.speak("记录结束", TextToSpeech.QUEUE_FLUSH, null, "out");
@@ -209,52 +217,33 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 File file = new File(dir);
                                 if (!file.exists())
                                     file.mkdirs();
-                                String filename = dir + "/" + username + "_" + tn + ".txt";
-                                //String sensorname = "/sdcard/sensor_" + filenames[times_save] + "_" + username + ".txt";
-                            /*
-                            times_save += 1;
-                            if(times_save != filenames.length - 5) {
-                                //int gesture_num = times_save / tasknames.length;
-                                //int task_num = times_save % tasknames.length;
-                                int gesture_num = times_save / taskperGesture.length;
-                                int task_num = times_save % taskperGesture.length;
-                                if (gesture_num >= 3 && task_num >= taskperGesture.length-4){
-                                    times_save += 4;
-                                    gesture_num = times_save / taskperGesture.length;
-                                    task_num = times_save % taskperGesture.length;
+                                String filename, sensor_filename;
+                                if (tn.equals("free"))
+                                {
+                                    SimpleDateFormat formatter = new SimpleDateFormat("HH:mm:ss");
+                                    Date curDate =  new Date(System.currentTimeMillis());
+                                    filename = dir + "/" + username + "_" + tn + "_" + formatter.format(curDate) + ".txt";
+                                    sensor_filename = dir + "/" + username + "_" + tn + "_" + formatter.format(curDate) + "_sensor.txt";
                                 }
-
-                                capacityView.task_name = taskperGesture[task_num];
-                                capacityView.gesture_name = gesturenames[gesture_num];
-                                capacityView.task_index = Integer.toString(times_save);
-
-                            }
-                            else {
-
-                                capacityView.task_name = "结束啦";
-                                capacityView.gesture_name = "";
-
-                            }
-                            capacityView.istapping = false;
-                            capacityView.isrecording = false;
-                            capacityView.resetCapacity();
-                            capacityView.invalidate();
-                            */
+                                else {
+                                    filename = dir + "/" + username + "_" + tn + ".txt";
+                                    sensor_filename = dir + "/" + username + "_" + tn + "_sensor.txt";
+                                }
                                 if (tn.equals("sensor"))
                                     writeSensors(sensorData, sensorCountSave, filename);
-                                else writeIntoFile(saveData, timeDataLong, countSave, filename);
-                            /*
-                            if (times_save == filenames.length - 1) {
-                                capacityView.isrecording = true;
-                                capacityView.invalidate();
-                            }
-                            */
-                                //writeIntoFile(saveData, timeData, countSave, filename);
-                                //writeIntoFile(saveDataString,timeData,countSave,filename);
+                                else
+                                {
+                                    writeSensors(sensorData, sensorCountSave, sensor_filename);
+                                    writeIntoFile(saveData, timeDataLong, countSave, filename);
+                                }
+
+                                if (tn.substring(0, 3).equals("lay"))
+                                    writeSeqIntoFile(dir + "/" + username + "_" + tn + "_seq.txt");
+
                             }
                         }).start();
                         if (++taskIndex == taskSum)
-                            taskIndex = 0;
+                            taskIndex = taskSum - 1;
                         mEditText.setEnabled(true);
 
                     } else {
@@ -264,7 +253,18 @@ public class MainActivity extends Activity implements SensorEventListener {
                         taskTimes = 0;
                         saveData = new short[amountSave * num_pixel];
                         timeDataLong = new Long[amountSave];
-                        username = mEditText.getText().toString();
+                        String[] str = mEditText.getText().toString().split(" ");
+                        username = str[0];
+                        if (str.length > 1)
+                        {
+                            for (int index = 0; index < filenames.length; index++)
+                                if (str[1].equals(filenames[index])) {
+                                    taskIndex = index;
+                                    mEditText.setText(str[0]);
+                                    break;
+                                }
+                        }
+
                         mEditText.setEnabled(false);
                         String tmp = filenames[taskIndex].substring(0, 3);
                         if (tmp.equals("hov"))
@@ -276,25 +276,32 @@ public class MainActivity extends Activity implements SensorEventListener {
                             CHECK_SUM = 1;
                         }
                         else CHECK_SUM = 50;
+
                         if (tmp.equals("hov") || tmp.equals("lay") || tmp.equals("mov"))
                         {
                             feedbackFlag = true;
                         }
                         else feedbackFlag = false;
 
-                        mTTS.speak(tasknames[taskIndex] + "记录开始", TextToSpeech.QUEUE_FLUSH, null, "out");
-                    /*
-                    if (mediaPlayer.isPlaying() == false) {
-                        mediaPlayer.start();
-                        mediaPlayer.setLooping(true);
-                    }
-                    capacityView.isrecording = true;
-                    if (times_save % taskperGesture.length < finger_index) // tapping but not ear
-                    {
-                        capacityView.istapping = true;
-                    }
-                    capacityView.invalidate();
-                    */
+                        if (tmp.equals("lay"))
+                        {
+                            layout_index = Integer.valueOf(filenames[taskIndex].substring(6, filenames[taskIndex].length()));
+                            lx = layout_x[layout_index % layout_x.length];
+                            ly = layout_y[layout_index % layout_x.length];
+
+                            pointSeq.clear();
+                            for (int times = 0; times < layout_repeat_times[layout_index % layout_x.length]; times++) {
+                                for (int index = 0; index < lx * ly; index++)
+                                    pointSeq.add(index);
+                            }
+                            Collections.shuffle(pointSeq);
+                        }
+
+                        String speak = tasknames[taskIndex] + "记录开始";
+                        if (tmp.equals("lay"))
+                            speak += "目标第" + Integer.toString(pointSeq.get(0) / lx + 1) + "航第" + Integer.toString(pointSeq.get(0) % lx + 1) + "列";
+                        mTTS.speak(speak, TextToSpeech.QUEUE_FLUSH, null, "out");
+
                     }
                 }
                 else
@@ -309,7 +316,8 @@ public class MainActivity extends Activity implements SensorEventListener {
             case KeyEvent.KEYCODE_VOLUME_DOWN:
                 if (RECORD) {
                     if (!isrecording) {
-                        if (--taskIndex < 0)
+                        --taskIndex;
+                        if (taskIndex < 0 || taskIndex >= taskSum)
                             taskIndex = taskSum - 1;
                         mTTS.speak("重做" + tasknames[taskIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
                     }
@@ -343,6 +351,20 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
 
     }
+
+    public void writeSeqIntoFile(String filename)
+    {
+        try {
+            FileOutputStream fileout = new FileOutputStream(new File(filename));
+            for (int i = 0; i < pointSeq.size(); i++) {
+                fileout.write((Integer.toString(pointSeq.get(i)) + "\n").getBytes());
+            }
+            fileout.close();
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void writeIntoFile(short[] saveData, Long[] timeDataLong, int countSave, String filename) {
         try {
             //Log.d("record","Write into files");
@@ -458,14 +480,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
-    private int[] layout_x = {5, 18};
-    private int[] layout_y = {6, 32};
-    private int index_x = -1, index_y = -1;
-
     private void handlePointForLayout(int x, int y)
     {
-        int layout_index = Integer.valueOf(filenames[taskIndex].substring(6, 7));
-        int lx = layout_x[layout_index], ly = layout_y[layout_index];
+        if (layout_index / layout_x.length == 0)
+            return;
         int x_interval = WIDTH / lx;
         int y_interval = HEIGHT / ly;
         int xx = x / x_interval, yy = y / y_interval;
@@ -473,10 +491,11 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (yy == ly) yy--;
         if (xx != index_x || yy != index_y)
         {
-            mTTS.speak(Integer.toString(yy + 1) + "行" + Integer.toString(xx + 1) + "列", TextToSpeech.QUEUE_FLUSH, null, "out");
+            mTTS.speak("第" + Integer.toString(yy + 1) + "航第" + Integer.toString(xx + 1) + "列", TextToSpeech.QUEUE_FLUSH, null, "out");
             index_x = xx;
             index_y = yy;
         }
+
     }
 
     private boolean clear_flag = true, notify_flag = false;
@@ -532,12 +551,11 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     public void processDiff(int x, int y, boolean down){
-
-
-       if  (x <= -100) {
-           Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
+        Log.d("position", Integer.toString(x) + ' ' + Integer.toString(y));
+        if  (x <= -100) {
+            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
            return;
-       }
+        }
 
         if (!feedbackFlag) return;
 
@@ -600,7 +618,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     break;
                 case TOUCH_MODE_PRESS:
                 case TOUCH_MODE_EXPLORE:
-                    if (x == -1 && y == -1 && fn.substring(0, 3).equals("lay")) {
+                    if (x == -1 && y == -1 && false) {
                         Log.d("hwjj", "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_PRESS;
@@ -614,7 +632,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (fn.substring(0, 3).equals("mov") && fn.charAt(fn.length() - 1) != '5' && !notify_flag) {
                         int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
                         if (dx * dx + dy * dy > 800 * 800) {
-                            mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                            //mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                            mTTS.speak("滴", TextToSpeech.QUEUE_FLUSH, null, "out");
                             notify_flag = true;
                         }
                     }
@@ -693,12 +712,26 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (finish)
         {
             long t = System.currentTimeMillis();
+
             if (t - lastNotifyTime > 1000) {
                 lastNotifyTime = t;
-                if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor") && !filenames[taskIndex].equals("layout0") && !filenames[taskIndex].equals("layout1")) {
+                if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor") && !filenames[taskIndex].substring(0, 3).equals("lay")) {
                     if (taskTimes == 1) mTTS.speak("尝试结束", TextToSpeech.QUEUE_FLUSH, null, "out");
                     else
                         mTTS.speak(Integer.toString(taskTimes - 1), TextToSpeech.QUEUE_FLUSH, null, "out");
+                }
+                if (filenames[taskIndex].substring(0, 3).equals("lay"))
+                {
+                    index_x = -1;
+                    index_y = -1;
+                    if (taskTimes < pointSeq.size()) {
+                        int tmp = pointSeq.get(taskTimes);
+                        mTTS.speak("目标第" + Integer.toString(tmp / lx + 1) + "航第" + Integer.toString(tmp % lx + 1) + "列", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    }
+                    else
+                    {
+                        mTTS.speak("目标完成", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    }
                 }
             }
             return;

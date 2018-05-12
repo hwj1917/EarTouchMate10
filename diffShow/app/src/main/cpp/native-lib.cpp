@@ -223,19 +223,9 @@ void *run(void *args){
 #endif
 
 #ifdef RECORD
+
                     env->SetShortArrayRegion(diffdata,0,DIFF_LENGTH*2+1+8,rawdata_after);
-                    if (sum > 1620000)
-                    {
-                        if (!touching)
-                            touching = true;
-                    } else
-                    {
-                        if (touching)
-                        {
-                            env->CallVoidMethod((jobject)args,record_method,diffdata, true);
-                            touching = false;
-                        }
-                    }
+
                     env->CallVoidMethod((jobject)args,record_method,diffdata, false);
 #endif
                     /*
@@ -545,6 +535,7 @@ void sendPoint(JNIEnv* env, bool touchEnd, Point result = Point())
 
         env->CallVoidMethod(obj,callBack_method, 0, last_angle, false);
 
+        env->CallVoidMethod(obj,record_method, NULL,  true);
         checked = 0;
         points_buffer.clear();
     }
@@ -564,11 +555,13 @@ void sendPoint(JNIEnv* env, bool touchEnd, Point result = Point())
                 Point p = points_buffer[0];
                 p.x = (float)(p.x - MIN_X) / (MAX_X - MIN_X) * screenx;
                 p.y = (float)(p.y - MIN_Y) / (MAX_Y - MIN_Y) * screeny;
+
                 env->CallVoidMethod(obj,callBack_method, p.x, p.y, true);
 
                 p = points_buffer[1];
                 p.x = (float)(p.x - MIN_X) / (MAX_X - MIN_X) * screenx;
                 p.y = (float)(p.y - MIN_Y) / (MAX_Y - MIN_Y) * screeny;
+
                 env->CallVoidMethod(obj,callBack_method, p.x, p.y, true);
 
             }
@@ -599,11 +592,11 @@ void calcPoint(Frame &frame, JNIEnv* env) {
 
     /////////////////////////////////////check press//////////////////////////////////////////////
     if (!spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD) {
-        env->CallVoidMethod(obj,callBack_method, -1, -1, true);
+        //env->CallVoidMethod(obj,callBack_method, -1, -1, true);
         checked = CHECK_SUM;
         last_dirty = isDirty;
         lastsum = sum;
-        usleep(1000000);
+        //usleep(1000000);
         return;
     }
     //////////////////////////////////////////////////////////////////////////////////////////////
