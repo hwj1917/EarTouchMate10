@@ -37,9 +37,9 @@
 #define CHECK_SUM 50
 #define DIRTY_SUM 32300
 
-//#define FROMFILE
+#define FROMFILE
 #define REALTIME
-#define FROMDEV
+//#define FROMDEV
 //#define RECORD
 
 using namespace cv;
@@ -855,36 +855,14 @@ void* handleFrame(void* args)
 
     if (fin) {
         LOGD("open File Succeeded..");
-        long long tmp;
-        while (fin.read((char *) &tmp, sizeof(long long))) {
-            LOGD("open");
-            int cap[4];
-            Frame f;
-            int j = 0, k = 0;
-            for (int i = 0; i < 32 * 18 / 4; i++) {
-                fin.read((char *) &tmp, sizeof(long long));
-                tmp = swapLongLong(tmp);
-                cap[0] = tmp / 1000000000000LL;
-                tmp -= cap[0] * 1000000000000LL;
-                cap[1] = tmp / 100000000LL;
-                tmp -= cap[1] * 100000000LL;
-                cap[2] = tmp / 10000LL;
-                tmp -= cap[2] * 10000LL;
-                cap[3] = tmp;
-
-                for (int l = 0; l < 4; l++) {
-                    f.capacity[j][k] = cap[l];
-                    if (++k == 18)
-                        j++, k = 0;
-                }
-            }
+        Frame f;
+        while (fin.read((char *)&f.capacity, sizeof(int) * GRID_RES_X * GRID_RES_Y))
             frames.push_back(f);
-        }
+
         fin.close();
     } else{
         LOGD("open File Failed..");
     }
-
 
     for (int i = 0; i < frames.size(); i++) {
         calcPoint(frames[i], env);
@@ -984,8 +962,9 @@ string jstring2str(JNIEnv* env, jstring jstr)
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_diffshow_MainActivity_readFile(JNIEnv *env, jobject instance, jstring fn) {
+Java_com_example_diffrealtime_MainActivity_readFile(JNIEnv *env, jobject instance, jstring fn) {
     filename = string("/sdcard/eartouch/") + jstring2str(env, fn);
+    LOGD("shit");
     obj = env->NewGlobalRef(instance);
     pthread_create(&thread_2, NULL, handleFrame, obj);
 }

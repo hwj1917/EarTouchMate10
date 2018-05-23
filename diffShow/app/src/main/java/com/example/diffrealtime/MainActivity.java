@@ -118,7 +118,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         LinearLayout ll = findViewById(R.id.linearLayout);
         mDrawView = new DrawView(this);
         mEditText = new EditText(this);
-        //ll.addView(mEditText);
+        ll.addView(mEditText);
         if (!RECORD)
             ll.addView(mDrawView);
 
@@ -263,9 +263,26 @@ public class MainActivity extends Activity implements SensorEventListener {
                 else
                 {
                     if (!running) {
-                        running = true;
-                        String filename = mEditText.getText().toString();
-                        readFile(filename);
+                        String type = mEditText.getText().toString();
+                        mEditText.setEnabled(false);
+                        File dir = new File("/sdcard/eartouch/res/" + type);
+                        for (File f : dir.listFiles())
+                        {
+                            Log.d("hwjj","res/" + type + "/" + f.getName() );
+                            running = true;
+                            readFile("res/" + type + "/" + f.getName());
+                            while (running)
+                            {
+                                try {
+                                    Thread.sleep(100);
+                                }
+                                catch (Exception e)
+                                {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                        mEditText.setEnabled(true);
                     }
                 }
                 return true;
