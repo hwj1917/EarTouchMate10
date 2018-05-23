@@ -846,6 +846,7 @@ void* handleFrame(void* args)
             calcPoint(*frame_current, env);
         }
         lastID = frame_current->frameID;
+        env->CallVoidMethod(obj, callBack_method, -1000, lastID, false);
     }
 #endif
 
