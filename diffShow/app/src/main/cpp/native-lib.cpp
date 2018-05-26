@@ -864,7 +864,7 @@ void* handleFrame(void* args)
         LOGD("open File Failed..");
     }
 
-    for (int i = 0; i < frames.size(); i++) {
+    for (int i = 0; i < frames.size(); i += 2) {
         calcPoint(frames[i], env);
     }
 

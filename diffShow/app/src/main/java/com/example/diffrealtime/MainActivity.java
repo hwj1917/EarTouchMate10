@@ -80,6 +80,38 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int taskTimes = 0;
     private final int maxTimes = 5;
 
+    private Statistic st = new Statistic();
+
+    class Statistic
+    {
+        public int pressSum = 0;
+        public int clickSum = 0;
+        public int swipelSum = 0;
+        public int swiperSum = 0;
+        public int swipeuSum = 0;
+        public int swipedSum = 0;
+        public int clkwiseSum = 0;
+        public int anticlkwiseSum = 0;
+
+        public void reset()
+        {
+            pressSum = clickSum = swipelSum = swiperSum = swipeuSum = swipedSum = clkwiseSum = anticlkwiseSum = 0;
+        }
+
+        public void printRes()
+        {
+            Log.d("hwjj", "press Sum: " + Integer.toString(pressSum));
+            Log.d("hwjj", "click Sum: " + Integer.toString(clickSum));
+            Log.d("hwjj", "swipe left Sum: " + Integer.toString(swipelSum));
+            Log.d("hwjj", "swipe right Sum: " + Integer.toString(swiperSum));
+            Log.d("hwjj", "swipe up Sum: " + Integer.toString(swipeuSum));
+            Log.d("hwjj", "swipe down Sum: " + Integer.toString(swipedSum));
+            Log.d("hwjj", "clockwise Sum: " + Integer.toString(clkwiseSum));
+            Log.d("hwjj", "anticlockwise Sum: " + Integer.toString(anticlkwiseSum));
+        }
+    }
+
+
     //Used to load the 'native-lib' library on application startup.
     static {
         System.loadLibrary("native-lib");
@@ -263,14 +295,15 @@ public class MainActivity extends Activity implements SensorEventListener {
                 else
                 {
                     if (!running) {
-                        String type = mEditText.getText().toString();
-                        mEditText.setEnabled(false);
-                        File dir = new File("/sdcard/eartouch/res/" + type);
-                        for (File f : dir.listFiles())
+                        String checkType = mEditText.getText().toString();
+                        File dir = new File("/sdcard/eartouch/res/" + checkType);
+                        st.reset();
+                        File[] fs = dir.listFiles();
+                        for (File f : fs)
                         {
-                            Log.d("hwjj","res/" + type + "/" + f.getName() );
+                            Log.d("hwjj","res/" + checkType + "/" + f.getName() );
                             running = true;
-                            readFile("res/" + type + "/" + f.getName());
+                            readFile("res/" + checkType + "/" + f.getName());
                             while (running)
                             {
                                 try {
@@ -282,7 +315,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 }
                             }
                         }
-                        mEditText.setEnabled(true);
+                        Log.d("hwjj", "file Sum: " + Integer.toString(fs.length));
+                        st.printRes();
                     }
                 }
                 return true;
@@ -463,11 +497,13 @@ public class MainActivity extends Activity implements SensorEventListener {
                 {
                     Log.d("hwjj", "swipe right");
                     mTTS.speak("右划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    st.swiperSum++;
                 }
                 else
                 {
                     Log.d("hwjj", "swipe left");
                     mTTS.speak("左划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    st.swipelSum++;
                 }
             }
             else
@@ -476,11 +512,13 @@ public class MainActivity extends Activity implements SensorEventListener {
                 {
                     Log.d("hwjj", "swipe down");
                     mTTS.speak("下划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    st.swipedSum++;
                 }
                 else
                 {
                     Log.d("hwjj", "swipe up");
                     mTTS.speak("上划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    st.swipeuSum++;
                 }
             }
             return true;
@@ -491,7 +529,6 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     public void processDiff(int x, int y, boolean down){
-
        if  (x <= -100) {
            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
            return;
@@ -517,18 +554,21 @@ public class MainActivity extends Activity implements SensorEventListener {
                     {
                         Log.d("hwjj", "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        st.pressSum++;
                         touch_mode = TOUCH_MODE_PRESS;
                     }
                     else if (x == -1 && y == 0)
                     {
                         Log.d("hwjj", "clockwise");
                         mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        st.clkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
                     }
                     else if (x == 0 && y == -1)
                     {
                         Log.d("hwjj", "anticlockwise");
                         mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        st.anticlkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
                     }
                     else if (checked == CHECK_SUM) {
@@ -548,6 +588,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     {
                         Log.d("hwjj", "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        st.pressSum++;
                         touch_mode = TOUCH_MODE_PRESS;
                     }
                     else {
@@ -561,12 +602,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                     {
                         Log.d("hwjj", "clockwise");
                         mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        st.clkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
                     }
                     else if (x == 0 && y == -1)
                     {
                         Log.d("hwjj", "anticlockwise");
                         mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        st.anticlkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
                     }
                     break;
@@ -588,11 +631,13 @@ public class MainActivity extends Activity implements SensorEventListener {
                             {
                                 Log.d("hwjj", "click 1");
                                 mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                st.clickSum++;
                             }
                             else
                             {
                                 Log.d("hwjj", "click 2");
                                 mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                st.clickSum++;
                             }
                         }
                     }
