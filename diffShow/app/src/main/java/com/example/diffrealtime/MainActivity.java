@@ -80,6 +80,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int taskTimes = 0;
     private final int maxTimes = 5;
 
+    private boolean modeFlag = false;
+
     //Used to load the 'native-lib' library on application startup.
     static {
         System.loadLibrary("native-lib");
@@ -175,117 +177,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_VOLUME_UP:
-                if (RECORD) {
-                    if (isrecording) {
-                    /*
-                    if (mediaPlayer.isPlaying() == true) {
-                        mediaPlayer.pause();
-                    }
-                    */
-                        isrecording = false;
-                        mTTS.speak("记录结束", TextToSpeech.QUEUE_FLUSH, null, "out");
-                        final String tn = filenames[taskIndex];
-                        new Thread(new Runnable() {
-                            public void run() {
-                                String filename = "/sdcard/eartouch/" + username + "_" + tn + ".txt";
+                modeFlag = !modeFlag;
+                switchMode();
+                mTTS.speak("模式已切换" , TextToSpeech.QUEUE_FLUSH, null, "out");
 
-                                //String sensorname = "/sdcard/sensor_" + filenames[times_save] + "_" + username + ".txt";
-                            /*
-                            times_save += 1;
-                            if(times_save != filenames.length - 5) {
-                                //int gesture_num = times_save / tasknames.length;
-                                //int task_num = times_save % tasknames.length;
-                                int gesture_num = times_save / taskperGesture.length;
-                                int task_num = times_save % taskperGesture.length;
-                                if (gesture_num >= 3 && task_num >= taskperGesture.length-4){
-                                    times_save += 4;
-                                    gesture_num = times_save / taskperGesture.length;
-                                    task_num = times_save % taskperGesture.length;
-                                }
-
-                                capacityView.task_name = taskperGesture[task_num];
-                                capacityView.gesture_name = gesturenames[gesture_num];
-                                capacityView.task_index = Integer.toString(times_save);
-
-                            }
-                            else {
-
-                                capacityView.task_name = "结束啦";
-                                capacityView.gesture_name = "";
-
-                            }
-                            capacityView.istapping = false;
-                            capacityView.isrecording = false;
-                            capacityView.resetCapacity();
-                            capacityView.invalidate();
-                            */
-                                if (tn.equals("sensor"))
-                                    writeSensors(sensorData, sensorCountSave, filename);
-                                else writeIntoFile(saveData, timeDataLong, countSave, filename);
-                            /*
-                            if (times_save == filenames.length - 1) {
-                                capacityView.isrecording = true;
-                                capacityView.invalidate();
-                            }
-                            */
-                                //writeIntoFile(saveData, timeData, countSave, filename);
-                                //writeIntoFile(saveDataString,timeData,countSave,filename);
-                            }
-                        }).start();
-                        if (++taskIndex == taskSum)
-                            taskIndex = 0;
-                        mEditText.setEnabled(true);
-
-                    } else {
-                        isrecording = true;
-                        countSave = 0;
-                        sensorCountSave = 0;
-                        taskTimes = 0;
-                        saveData = new short[amountSave * num_pixel];
-                        timeDataLong = new Long[amountSave];
-                        username = mEditText.getText().toString();
-                        mEditText.setEnabled(false);
-                        mTTS.speak(tasknames[taskIndex] + "记录开始", TextToSpeech.QUEUE_FLUSH, null, "out");
-                    /*
-                    if (mediaPlayer.isPlaying() == false) {
-                        mediaPlayer.start();
-                        mediaPlayer.setLooping(true);
-                    }
-                    capacityView.isrecording = true;
-                    if (times_save % taskperGesture.length < finger_index) // tapping but not ear
-                    {
-                        capacityView.istapping = true;
-                    }
-                    capacityView.invalidate();
-                    */
-                    }
-                }
-                else
-                {
-                    if (!running) {
-                        running = true;
-                        String filename = mEditText.getText().toString();
-                        readFile(filename);
-                    }
-                }
-                return true;
-            case KeyEvent.KEYCODE_VOLUME_DOWN:
-                if (RECORD) {
-                    if (!isrecording) {
-                        if (--taskIndex < 0)
-                            taskIndex = taskSum - 1;
-                        mTTS.speak("重做" + tasknames[taskIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
-                    }
-                }
-                /*
-                if (mediaPlayer.isPlaying() == true) {
-                    mediaPlayer.pause();
-                }
-                capacityView.isrecording = false;
-                capacityView.istapping = false;
-                capacityView.resetCapacity();
-                capacityView.invalidate();
-                */
                 return true;
             default:
                 break;
@@ -434,6 +329,17 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int checked = 0;
     private int first_checked_x, first_checked_y, last_checked_x, last_checked_y;
 
+
+    private final int maxX = 1440;
+    private final int maxY = 2560;
+    private String[] appNames = {"微信", "今日头条", "网易云音乐", "浏览器", "支付宝", "地图", "微博", "美团", "联系人", "短信", "拨号", "设置"};
+    private final int appSum = 12;
+    private final int xSum = 3;
+    private final int ySum = appSum / xSum;
+    private final int xInv = maxX / xSum;
+    private final int yInv = maxY / ySum;
+    private int appIndex = 0;
+
     private boolean checkSwipe()
     {
         int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
@@ -445,12 +351,19 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (dx > 0)
                 {
                     Log.d("hwjj", "swipe right");
-                    mTTS.speak("右划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    if (++appIndex == appSum)
+                        appIndex = 0;
+                    if (!modeFlag)
+                        mTTS.speak(appNames[appIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
                 }
                 else
                 {
                     Log.d("hwjj", "swipe left");
-                    mTTS.speak("左划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    if (--appIndex == -1)
+                        appIndex = appSum - 1;
+                    if (!modeFlag)
+                        mTTS.speak(appNames[appIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
+
                 }
             }
             else
@@ -458,12 +371,12 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (dy > 0)
                 {
                     Log.d("hwjj", "swipe down");
-                    mTTS.speak("下划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    //mTTS.speak("下划", TextToSpeech.QUEUE_FLUSH, null, "out");
                 }
                 else
                 {
                     Log.d("hwjj", "swipe up");
-                    mTTS.speak("上划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    //mTTS.speak("上划", TextToSpeech.QUEUE_FLUSH, null, "out");
                 }
             }
             return true;
@@ -475,14 +388,15 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     public void processDiff(int x, int y, boolean down){
 
-       if  (x <= -100) {
+        if  (x <= -100) {
            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
            return;
-       }
+        }
 
+
+        //mode1
         if (down) {
-            if (clear_flag)
-            {
+            if (clear_flag) {
                 DrawView.points_x.clear();
                 DrawView.points_y.clear();
                 first_checked_x = x;
@@ -490,64 +404,53 @@ public class MainActivity extends Activity implements SensorEventListener {
                 clear_flag = false;
             }
 
-            switch (touch_mode)
-            {
+            switch (touch_mode) {
                 case TOUCH_MODE_CHECK:
                     checked++;
                     last_checked_x = x;
                     last_checked_y = y;
-                    if (x == -1 && y == -1)
-                    {
+                    if (x == -1 && y == -1) {
                         Log.d("hwjj", "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_PRESS;
-                    }
-                    else if (x == -1 && y == 0)
-                    {
+                    } else if (x == -1 && y == 0) {
                         Log.d("hwjj", "clockwise");
                         mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_SPIN;
-                    }
-                    else if (x == 0 && y == -1)
-                    {
+                    } else if (x == 0 && y == -1) {
                         Log.d("hwjj", "anticlockwise");
                         mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_SPIN;
-                    }
-                    else if (checked == CHECK_SUM) {
+                    } else if (checked == CHECK_SUM) {
                         if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
                         else {
-                            touch_mode = TOUCH_MODE_EXPLORE;
-                            Log.d("hwjj", "explore");
-                            mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
-                            mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                            touch_mode = TOUCH_MODE_PRESS;
+                            Log.d("hwjj", "press");
+                            if (!modeFlag)
+                                mTTS.speak("进入" + appNames[appIndex] + "应用", TextToSpeech.QUEUE_FLUSH, null, "out");
+                            touch_mode = TOUCH_MODE_PRESS;
                         }
                         checked = 0;
                     }
                     break;
                 case TOUCH_MODE_PRESS:
                 case TOUCH_MODE_EXPLORE:
-                    if (x == -1 && y == -1)
-                    {
+                    if (x == -1 && y == -1) {
                         Log.d("hwjj", "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_PRESS;
-                    }
-                    else {
+                    } else {
                         DrawView.points_x.add(x);
                         DrawView.points_y.add(y);
                         mDrawView.postInvalidate();
                     }
                     break;
                 case TOUCH_MODE_SPIN:
-                    if (x == -1 && y == 0)
-                    {
+                    if (x == -1 && y == 0) {
                         Log.d("hwjj", "clockwise");
                         mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_SPIN;
-                    }
-                    else if (x == 0 && y == -1)
-                    {
+                    } else if (x == 0 && y == -1) {
                         Log.d("hwjj", "anticlockwise");
                         mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         touch_mode = TOUCH_MODE_SPIN;
@@ -558,25 +461,16 @@ public class MainActivity extends Activity implements SensorEventListener {
                     break;
             }
 
-        }
-        else {
-            switch (touch_mode)
-            {
+        } else {
+            switch (touch_mode) {
                 case TOUCH_MODE_CHECK:
                     if (checked > 3) {
                         if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
                         else {
                             touch_mode = TOUCH_MODE_CLICK;
-                            if (y > 0 && y < 70)
-                            {
-                                Log.d("hwjj", "click 1");
-                                mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
-                            }
-                            else
-                            {
-                                Log.d("hwjj", "click 2");
-                                mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
-                            }
+                            if (last_checked_y < 1280)
+                                mTTS.speak("现在是十二点二十二分", TextToSpeech.QUEUE_FLUSH, null, "out");
+                            else mTTS.speak("剩余电量百分之八十", TextToSpeech.QUEUE_FLUSH, null, "out");
                         }
                     }
                     break;
@@ -586,7 +480,27 @@ public class MainActivity extends Activity implements SensorEventListener {
             touch_mode = TOUCH_MODE_CHECK;
         }
 
+        //mode2
+        if (down)
+        {
+            if (x == -1 && y == -1) {
+                if (modeFlag)
+                    mTTS.speak("进入" + appNames[appIndex] + "应用" , TextToSpeech.QUEUE_FLUSH, null, "out");
+            }
+            else
+            {
+                int _x = x / xInv;
+                int _y = y / yInv;
+                int lastIndex = appIndex;
+                appIndex = _y * xSum + _x;
+                if (modeFlag && appIndex != lastIndex)
+                    mTTS.speak(appNames[appIndex] , TextToSpeech.QUEUE_FLUSH, null, "out");
+            }
+        }
+        else
+        {
 
+        }
         //Log.d("para",Short.toString(data[num_pixel]));
         //Log.d("time",Long.toString(time)); // for test time
 
@@ -656,7 +570,8 @@ public class MainActivity extends Activity implements SensorEventListener {
      */
     public native void readDiffStart();
     public native void readDiffStop();
-    public native void readFile(String filename);
+    public native void switchMode();
+    //public native void readFile(String filename);
 
     private Socket socket = null;
     private OutputStream outputStream;

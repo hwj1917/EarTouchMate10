@@ -102,6 +102,8 @@ RotatedRect checkSpinFirstTouch;
 bool checkSpinRectFlag;
 int checkSpinSample = 0;
 int last_angle = -1, total_angle = 0, clkwise = 0, anticlkwise = 0;
+
+bool modeFlag = false;
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 jmethodID callBack_method, notify_method;
@@ -289,7 +291,7 @@ int matSum(Mat& m)
 
 bool findPattern(Mat& m, Rect& pattern, RotatedRect& firstTouch)
 {
-
+    /*
     if (checked < CHECK_SUM)                    //find pattern was done while check spin
     {
         if (checkSpinRectFlag) {
@@ -297,7 +299,7 @@ bool findPattern(Mat& m, Rect& pattern, RotatedRect& firstTouch)
             firstTouch = checkSpinFirstTouch;
         }
         return checkSpinRectFlag;
-    }
+    }*/
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     findContours(m, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
@@ -586,7 +588,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
     bool isDirty = (sum > DIRTY_SUM);//判断该帧是否足够可靠，以确定耳朵是否抬起
 
     /////////////////////////////////////check press//////////////////////////////////////////////
-    if (!spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD) {
+    if (modeFlag && !spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD) {
         env->CallVoidMethod(obj,callBack_method, -1, -1, true);
         checked = CHECK_SUM;
         last_dirty = isDirty;
@@ -609,7 +611,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         threshold(lanc, binaryImage, 70, 0, THRESH_TOZERO);        //gray
         binaryImage.convertTo(binaryImage, CV_8U);
 
-
+        /*
         //check spin. here we go
         if (!swipeFlag) swipeFlag = checkSwipe();
         if ((!swipeFlag && checked < CHECK_SUM) || spinFlag) {
@@ -621,7 +623,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
             }
         }
         //here we stop
-
+        */
         if (!last_dirty)                                         //触摸开始
         {
             //sendTCP(true);
@@ -989,4 +991,10 @@ Java_com_example_diffshow_MainActivity_readFile(JNIEnv *env, jobject instance, j
     filename = string("/sdcard/eartouch/") + jstring2str(env, fn);
     obj = env->NewGlobalRef(instance);
     pthread_create(&thread_2, NULL, handleFrame, obj);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_diffrealtime_MainActivity_switchMode(JNIEnv *env, jobject instance) {
+    modeFlag = !modeFlag;
 }
