@@ -74,6 +74,7 @@ int frameID = 0;
 bool last_dirty = false;
 
 int lastsum = 31000;
+int lastPatternSum = 0;
 
 const int lenx = GRID_RES_X * 5, leny = GRID_RES_Y * 5;
 const float screenx = 1440, screeny = 2560;
@@ -97,11 +98,15 @@ const int PRESS_THRESHOLD = 2000;
 int touchSum;
 int checked = 0;
 bool spinFlag = false, swipeFlag = false;
+int pressFlag = 0;
 Rect checkSpinPattern;
 RotatedRect checkSpinFirstTouch;
 bool checkSpinRectFlag;
 int checkSpinSample = 0;
 int last_angle = -1, total_angle = 0, clkwise = 0, anticlkwise = 0;
+
+const int MAX_PRESS_DIST = 80;
+double press_dist;
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 jmethodID callBack_method, notify_method;
@@ -289,7 +294,7 @@ int matSum(Mat& m)
 
 bool findPattern(Mat& m, Rect& pattern, RotatedRect& firstTouch)
 {
-
+/*
     if (checked < CHECK_SUM)                    //find pattern was done while check spin
     {
         if (checkSpinRectFlag) {
@@ -297,7 +302,7 @@ bool findPattern(Mat& m, Rect& pattern, RotatedRect& firstTouch)
             firstTouch = checkSpinFirstTouch;
         }
         return checkSpinRectFlag;
-    }
+    }*/
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     findContours(m, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
@@ -407,13 +412,13 @@ void cubicSmooth5(deque<Point>& in)
     }
 }
 
-bool checkSwipe()
+bool checkSwipe(int dist)
 {
     if (points_buffer.size() > 1) {
         int dx = points_buffer[points_buffer.size() - 1].x - points_buffer[0].x;
         int dy = points_buffer[points_buffer.size() - 1].y - points_buffer[0].y;
-
-        if (dx * dx + dy * dy > 300 * 300)
+        press_dist = sqrt(dx * dx + dy * dy);
+        if (dx * dx + dy * dy > dist * dist)
             return true;
         else return false;
     }
@@ -572,6 +577,17 @@ void sendPoint(JNIEnv* env, bool touchEnd, Point result = Point())
     }
 }
 
+Mat subMat(Mat& par, Rect r)
+{
+    if (r.x < 0) r.x = 0;
+    if (r.x >= par.cols) r.x = par.cols - 1;
+    if (r.y < 0) r.y = 0;
+    if (r.y >= par.rows) r.y = par.rows - 1;
+    if (r.x + r.width >= par.cols) r.width = par.cols - 1 - r.x;
+    if (r.y + r.height >= par.rows) r.height = par.rows - 1 - r.y;
+    return par(r);
+}
+
 void calcPoint(Frame &frame, JNIEnv* env) {
     bool has_find_pattern;
     Rect patternRect;
@@ -585,6 +601,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
 
     bool isDirty = (sum > DIRTY_SUM);//判断该帧是否足够可靠，以确定耳朵是否抬起
 
+    /*
     /////////////////////////////////////check press//////////////////////////////////////////////
     if (!spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD) {
         env->CallVoidMethod(obj,callBack_method, -1, -1, true);
@@ -595,7 +612,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         return;
     }
     //////////////////////////////////////////////////////////////////////////////////////////////
-
+    */
     if (isDirty)
     {
         Mat& binaryImage = Image[now];
@@ -610,6 +627,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         binaryImage.convertTo(binaryImage, CV_8U);
 
 
+        /*
         //check spin. here we go
         if (!swipeFlag) swipeFlag = checkSwipe();
         if ((!swipeFlag && checked < CHECK_SUM) || spinFlag) {
@@ -621,7 +639,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
             }
         }
         //here we stop
-
+        */
         if (!last_dirty)                                         //触摸开始
         {
             //sendTCP(true);
@@ -695,12 +713,16 @@ void calcPoint(Frame &frame, JNIEnv* env) {
 
                         frame_count = 0;
                         last_point[tracker_now] = box_point, last_point[tracker_last] = Point(rect.x, rect.y);
+
+                        pattern = subMat(binaryImage, box_last);//
                     }
                     else
                     {
                         last_box_point = last_point[tracker_now];
                         box_point = Point(box.x, box.y);
                         last_point[tracker_now] = box_point, last_point[tracker_last] = Point(box_last.x, box_last.y);
+
+                        pattern = subMat(binaryImage, box);//
                     }
                 }
                 else
@@ -710,6 +732,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                     box_point = Point(box.x, box.y);
                     last_point[tracker_now] = box_point;
                     if (succ_last) last_point[tracker_last] = Point(box_last.x, box_last.y);
+
+                    pattern = subMat(binaryImage, box);//
                 }
 
                 ptmp = box_point - last_box_point + last_result;
@@ -746,6 +770,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                         tracker_now = 0, tracker_last = 1;
                     else tracker_now = 1, tracker_last = 0;
                     last_point[tracker_now] = box_point, last_point[tracker_last] = Point(rect.x, rect.y);
+
+                    pattern = subMat(binaryImage, box_last);//
                 }
                 else
                 {
@@ -779,12 +805,42 @@ void calcPoint(Frame &frame, JNIEnv* env) {
 
             last_result = ptmp;
         }
+
+        /////////////////////////////////////check press//////////////////////////////////////////////
+        //int patternSum = matSum<uchar>(pattern);
+        if (pressFlag == 0 && !spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD && !checkSwipe(MAX_PRESS_DIST)) {
+            env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
+            pressFlag = 80;
+            env->CallVoidMethod(obj, callBack_method, -1000, sum, true);
+        }
+        else if (pressFlag > 0) {
+            env->CallVoidMethod(obj, callBack_method, -1000, sum, true);
+            if (sum < touchSum + PRESS_THRESHOLD && !checkSwipe(MAX_PRESS_DIST)) {
+                env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
+                pressFlag = 0;
+                env->CallVoidMethod(obj, callBack_method, -1, -1, true);
+                checked = CHECK_SUM;
+                last_dirty = isDirty;
+                lastsum = sum;
+                return;
+            }
+            else
+            {
+                if (--pressFlag == 0)
+                    pressFlag = -1;
+            }
+        }
+        else env->CallVoidMethod(obj, callBack_method, -1000, sum, false);
+        //lastPatternSum = patternSum;
+        //////////////////////////////////////////////////////////////////////////////////////////////
+
         sendPoint(env, false, result);
     }
     else                                               //触摸结束
     {
         spinFlag = false;
         swipeFlag = false;
+        pressFlag = 0;
 
         if (last_dirty)
         {

@@ -32,7 +32,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Queue;
 
 public class MainActivity extends Activity implements SensorEventListener {
     public final boolean RECORD = false;
@@ -54,9 +57,6 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private MediaPlayer mediaPlayer = new MediaPlayer();
     private SensorManager sensorManager;
-    private Sensor sensor_rotation;
-    private Sensor sensor_accelerometer;
-    private Sensor sensor_gyo;
     private boolean isrecording;
     private boolean running;
     private int times_save = 0;
@@ -82,6 +82,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private Statistic st = new Statistic();
 
+    private FileOutputStream logFile = null;
+
     class Statistic
     {
         public int pressSum = 0;
@@ -92,10 +94,71 @@ public class MainActivity extends Activity implements SensorEventListener {
         public int swipedSum = 0;
         public int clkwiseSum = 0;
         public int anticlkwiseSum = 0;
+        public int exploreSum = 0;
+        private List<String> pressList = new LinkedList<>();
+        private List<String> clickList = new LinkedList<>();
+        private List<String> swipelrList = new LinkedList<>();
+        private List<String> swipeudList = new LinkedList<>();
+        private List<String> exploreList = new LinkedList<>();
+        private List<String> emptyList = new LinkedList<>();
+
+        private int bfpressSum = 0;
+        private int bfclickSum = 0;
+        private int bfswipelSum = 0;
+        private int bfswiperSum = 0;
+        private int bfswipeuSum = 0;
+        private int bfswipedSum = 0;
+        private int bfclkwiseSum = 0;
+        private int bfanticlkwiseSum = 0;
+        private int bfexploreSum = 0;
 
         public void reset()
         {
-            pressSum = clickSum = swipelSum = swiperSum = swipeuSum = swipedSum = clkwiseSum = anticlkwiseSum = 0;
+            pressSum = clickSum = swipelSum = swiperSum = swipeuSum = swipedSum = clkwiseSum = anticlkwiseSum = exploreSum = 0;
+            pressList.clear();
+            clickList.clear();
+            swipelrList.clear();
+            swipeudList.clear();
+            exploreList.clear();
+            emptyList.clear();
+        }
+
+        public void beforeRun()
+        {
+            bfpressSum = pressSum;
+            bfclickSum = clickSum;
+            bfswipelSum = swipelSum;
+            bfswiperSum = swiperSum;
+            bfswipeuSum = swipeuSum;
+            bfswipedSum = swipedSum;
+            bfexploreSum = exploreSum;
+        }
+
+        public void afterRun(String filename)
+        {
+            boolean flag = false;
+            if (pressSum > bfpressSum) {
+                pressList.add(filename);
+                flag = true;
+            }
+            if (clickSum > bfclickSum) {
+                clickList.add(filename);
+                flag = true;
+            }
+            if (swipelSum > bfswipelSum || swiperSum > bfswiperSum) {
+                swipelrList.add(filename);
+                flag = true;
+            }
+            if (swipeuSum > bfswipeuSum || swipedSum > bfswipedSum) {
+                swipeudList.add(filename);
+                flag = true;
+            }
+            if (exploreSum > bfexploreSum) {
+                exploreList.add(filename);
+                flag = true;
+            }
+            if (!flag)
+                emptyList.add(filename);
         }
 
         public void printRes()
@@ -108,6 +171,25 @@ public class MainActivity extends Activity implements SensorEventListener {
             Log.d("hwjj", "swipe down Sum: " + Integer.toString(swipedSum));
             Log.d("hwjj", "clockwise Sum: " + Integer.toString(clkwiseSum));
             Log.d("hwjj", "anticlockwise Sum: " + Integer.toString(anticlkwiseSum));
+            Log.d("hwjj", "explore Sum: " + exploreSum);
+            writeLog("press file:");
+            for (String n : pressList)
+                writeLog(n);
+            writeLog("click file:");
+            for (String n : clickList)
+                writeLog(n);
+            writeLog("swipe left and right file:");
+            for (String n : swipelrList)
+                writeLog(n);
+            writeLog("swipe up and down file:");
+            for (String n : swipeudList)
+                writeLog(n);
+            writeLog("explore file:");
+            for (String n : exploreList)
+                writeLog(n);
+            writeLog("empty file:");
+            for (String n : emptyList)
+                writeLog(n);
         }
     }
 
@@ -187,6 +269,25 @@ public class MainActivity extends Activity implements SensorEventListener {
         readDiffStop();
     }
 
+    private void writeLog(String log)
+    {
+        try {
+            logFile.write((log + '\n').getBytes());
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private final int RAD_QUEUE_SIZE = 5;
+    private final int RAD_CONSECUTIVE = 4;
+    private final double RAD_LEAP = 30;
+    private Queue<Double> rad_queue = new LinkedList<>();
+    private double[] rads = new double[RAD_QUEUE_SIZE];
+    private int[] f = new int [RAD_QUEUE_SIZE];
+    private int[] h = new int [RAD_QUEUE_SIZE];
+
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
@@ -195,7 +296,90 @@ public class MainActivity extends Activity implements SensorEventListener {
         else if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
             getRotation(event);
         }
+        else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+        {/*
+            float[] values = event.values;
+            float ax = values[0];
+            float ay = values[1];
 
+            double g = Math.sqrt(ax * ax + ay * ay);
+            double cos = ay / g;
+            if (cos > 1) {
+                cos = 1;
+            } else if (cos < -1) {
+                cos = -1;
+            }
+            double rad = Math.acos(cos);
+            if (ax < 0) {
+                rad = 2 * Math.PI - rad;
+            }
+
+            //here we go
+            Log.d("hwjj", ""+rad);
+            rad = rad / Math.PI * 180;
+            if (rad_queue.size() == RAD_QUEUE_SIZE)
+                rad_queue.poll();
+            rad_queue.add(rad);
+            if (rad_queue.size() == RAD_QUEUE_SIZE) {
+                //clock wise
+                int i = -1;
+                int flag = 0;
+                for (Double x : rad_queue) {
+                    ++i;
+                    rads[i] = x;
+                    f[i] = 0;
+                    h[i] = i;
+                    if (i > 0 && Math.abs(rads[i] - rads[i - 1]) > 180) {
+                        if (rads[i] < rads[i - 1])
+                            rads[i] += 360;
+                        else
+                            rads[i] -= 360;
+                    }
+                    for (int j = 0; j < i; ++j)
+                        if (rads[i] < rads[j] && f[j] > f[i]) {
+                            f[i] = f[j];
+                            h[i] = h[j];
+                        }
+                    f[i]++;
+                    if (f[i] >= RAD_CONSECUTIVE && Math.abs(rads[i] - rads[h[i]]) >= RAD_LEAP)
+                        flag = (int)(Math.abs(rads[i] - rads[h[i]]) / RAD_LEAP);
+                }
+                if (flag > 0) {
+                    Log.d("hwjj", "clock wise " + flag);
+                    rad_queue.clear();
+                }
+
+                //anticlock wise
+                i = -1;
+                flag = 0;
+                for (Double x : rad_queue) {
+                    ++i;
+                    rads[i] = x;
+                    f[i] = 0;
+                    h[i] = i;
+                    if (i > 0 && Math.abs(rads[i] - rads[i - 1]) > 180) {
+                        if (rads[i] < rads[i - 1])
+                            rads[i] += 360;
+                        else
+                            rads[i] -= 360;
+                    }
+                    for (int j = 0; j < i; ++j)
+                        if (rads[i] > rads[j] && f[j] > f[i]) {
+                            f[i] = f[j];
+                            h[i] = h[j];
+                        }
+                    f[i]++;
+                    if (f[i] >= RAD_CONSECUTIVE && Math.abs(rads[i] - rads[h[i]]) >= RAD_LEAP)
+                        flag = (int)(Math.abs(rads[i] - rads[h[i]]) / RAD_LEAP);
+                }
+                if (flag > 0) {
+
+                    Log.d("hwjj", "anti clock wise " + flag);
+                    rad_queue.clear();
+                }
+            }
+            //here we stop*/
+        }
     }
 
     @Override
@@ -297,13 +481,25 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (!running) {
                         String checkType = mEditText.getText().toString();
                         File dir = new File("/sdcard/eartouch/res/" + checkType);
+                        try {
+                            logFile = new FileOutputStream(new File("/sdcard/eartouch/" + checkType + "_log.txt"));
+                        }
+                        catch (Exception e)
+                        {
+                            e.printStackTrace();
+                        }
                         st.reset();
                         File[] fs = dir.listFiles();
                         for (File f : fs)
                         {
-                            Log.d("hwjj","res/" + checkType + "/" + f.getName() );
+                            if (f.getName().contains("miaomiao") || f.getName().contains("shangxue") || f.getName().contains("wrl"))
+                                continue;
+                            String filename = "res/" + checkType + "/" + f.getName();
+                            Log.d("hwjj", filename);
+                            writeLog(filename);
+                            st.beforeRun();
                             running = true;
-                            readFile("res/" + checkType + "/" + f.getName());
+                            readFile(filename);
                             while (running)
                             {
                                 try {
@@ -314,9 +510,16 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     e.printStackTrace();
                                 }
                             }
+                            st.afterRun(filename);
                         }
                         Log.d("hwjj", "file Sum: " + Integer.toString(fs.length));
                         st.printRes();
+                        try {
+                            logFile.close();                        }
+                        catch (Exception e)
+                        {
+                            e.printStackTrace();
+                        }
                     }
                 }
                 return true;
@@ -417,8 +620,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         linear_acceleration[0] = event.values[0] - gravity[0];
         linear_acceleration[1] = event.values[1] - gravity[1];
         linear_acceleration[2] = event.values[2] - gravity[2];
-
-
         sensorData[sensorCountSave++] = Float.toString(linear_acceleration[0]) + " " + Float.toString(linear_acceleration[1]) + " " +Float.toString(linear_acceleration[2]) + '\n';
 
     }
@@ -434,13 +635,14 @@ public class MainActivity extends Activity implements SensorEventListener {
     private void iniateSensors()
     {
         sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
-        sensor_accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        sensor_rotation = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         sensorManager.registerListener(this,
                 sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
                 SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(this,
                 sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
+                SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this,
+                sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
                 SensorManager.SENSOR_DELAY_NORMAL);
 
     }
@@ -489,6 +691,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     {
         int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
 
+        writeLog("dist: " + Math.sqrt(dx * dx + dy * dy));
+
         if (dx * dx + dy * dy > 300 * 300)
         {
             if (Math.abs(dx) > Math.abs(dy))
@@ -496,12 +700,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (dx > 0)
                 {
                     Log.d("hwjj", "swipe right");
+                    writeLog("swipe right");
                     mTTS.speak("右划", TextToSpeech.QUEUE_FLUSH, null, "out");
                     st.swiperSum++;
                 }
                 else
                 {
                     Log.d("hwjj", "swipe left");
+                    writeLog("swipe left");
                     mTTS.speak("左划", TextToSpeech.QUEUE_FLUSH, null, "out");
                     st.swipelSum++;
                 }
@@ -511,12 +717,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (dy > 0)
                 {
                     Log.d("hwjj", "swipe down");
+                    writeLog("swipe down");
                     mTTS.speak("下划", TextToSpeech.QUEUE_FLUSH, null, "out");
                     st.swipedSum++;
                 }
                 else
                 {
                     Log.d("hwjj", "swipe up");
+                    writeLog("swipe up");
                     mTTS.speak("上划", TextToSpeech.QUEUE_FLUSH, null, "out");
                     st.swipeuSum++;
                 }
@@ -531,6 +739,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     public void processDiff(int x, int y, boolean down){
        if  (x <= -100) {
            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
+           if (x == -1000) writeLog("sum: " + y + " " + down);
+           if (x == -10000) writeLog("press dist: " + y);
            return;
        }
 
@@ -553,6 +763,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (x == -1 && y == -1)
                     {
                         Log.d("hwjj", "press");
+                        writeLog("press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.pressSum++;
                         touch_mode = TOUCH_MODE_PRESS;
@@ -576,6 +787,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                         else {
                             touch_mode = TOUCH_MODE_EXPLORE;
                             Log.d("hwjj", "explore");
+                            writeLog("explore");
+                            st.exploreSum++;
                             mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
                             mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                         }
@@ -587,6 +800,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (x == -1 && y == -1)
                     {
                         Log.d("hwjj", "press");
+                        writeLog("press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.pressSum++;
                         touch_mode = TOUCH_MODE_PRESS;
@@ -630,12 +844,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                             if (y > 0 && y < 70)
                             {
                                 Log.d("hwjj", "click 1");
+                                writeLog("click1");
                                 mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
                                 st.clickSum++;
                             }
                             else
                             {
                                 Log.d("hwjj", "click 2");
+                                writeLog("click2");
                                 mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
                                 st.clickSum++;
                             }
