@@ -80,7 +80,7 @@ const int lenx = GRID_RES_X * 5, leny = GRID_RES_Y * 5;
 const float screenx = 1440, screeny = 2560;
 const float mulx = screenx / lenx, muly = screeny / leny;
 
-const int patternSize = 10;
+const int MIN_PATTERN_SIZE = 10;
 Mat pattern, lanc(leny, lenx, CV_32F), Image[2];
 
 Point last_result(lenx / 2, leny / 2), last_point[2];
@@ -313,7 +313,7 @@ bool findPattern(Mat& m, Rect& pattern, RotatedRect& firstTouch)
     Rect rectsum;
     vector<Point> save;
     for (int i = 0; i < contours.size(); i++) {
-        if (contours[i].size() > patternSize && contours[i].size()) {
+        if (contours[i].size() > MIN_PATTERN_SIZE && contours[i].size()) {
             rect = true;
             Rect recti = boundingRect(contours.at(i));
             rectsum = rectsum | recti;
@@ -447,7 +447,7 @@ void checkSpin(JNIEnv* env, int sum, Mat& binaryImage)
     vector<Point> save;
     bool rect = false;
     for (int i = 0; i < contours.size(); i++) {
-        if (contours[i].size() > 20 && contours[i].size()) {
+        if (contours[i].size() > MIN_PATTERN_SIZE && contours[i].size()) {
             rect = true;
             Rect recti = boundingRect(contours.at(i));
             rectsum = rectsum | recti;

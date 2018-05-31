@@ -100,6 +100,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         private List<String> swipelrList = new LinkedList<>();
         private List<String> swipeudList = new LinkedList<>();
         private List<String> exploreList = new LinkedList<>();
+        private List<String> clkList = new LinkedList<>();
         private List<String> emptyList = new LinkedList<>();
 
         private int bfpressSum = 0;
@@ -121,6 +122,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             swipeudList.clear();
             exploreList.clear();
             emptyList.clear();
+            clkList.clear();
         }
 
         public void beforeRun()
@@ -132,6 +134,8 @@ public class MainActivity extends Activity implements SensorEventListener {
             bfswipeuSum = swipeuSum;
             bfswipedSum = swipedSum;
             bfexploreSum = exploreSum;
+            bfclkwiseSum = clkwiseSum;
+            bfanticlkwiseSum = anticlkwiseSum;
         }
 
         public void afterRun(String filename)
@@ -155,6 +159,11 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
             if (exploreSum > bfexploreSum) {
                 exploreList.add(filename);
+                flag = true;
+            }
+            if (clkwiseSum > bfclkwiseSum || anticlkwiseSum > bfanticlkwiseSum)
+            {
+                clkList.add(filename);
                 flag = true;
             }
             if (!flag)
@@ -186,6 +195,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                 writeLog(n);
             writeLog("explore file:");
             for (String n : exploreList)
+                writeLog(n);
+            writeLog("clockwise and anticlockwise file:");
+            for (String n : clkList)
                 writeLog(n);
             writeLog("empty file:");
             for (String n : emptyList)
