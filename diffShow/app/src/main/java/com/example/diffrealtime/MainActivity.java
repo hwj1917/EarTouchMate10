@@ -490,6 +490,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         }
                         st.reset();
                         File[] fs = dir.listFiles();
+                        int filesum = 0;
                         for (File f : fs)
                         {
                             if (f.getName().contains("miaomiao") || f.getName().contains("shangxue") || f.getName().contains("wrl"))
@@ -510,9 +511,17 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     e.printStackTrace();
                                 }
                             }
+                            try {
+                                Thread.sleep(100);
+                            }
+                            catch (Exception e)
+                            {
+                                e.printStackTrace();
+                            }
                             st.afterRun(filename);
+                            filesum++;
                         }
-                        Log.d("hwjj", "file Sum: " + Integer.toString(fs.length));
+                        Log.d("hwjj", "file Sum: " + Integer.toString(filesum));
                         st.printRes();
                         try {
                             logFile.close();                        }
@@ -687,13 +696,16 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int checked = 0;
     private int first_checked_x, first_checked_y, last_checked_x, last_checked_y;
 
+    private final int MIN_SWIPE_DIST = 240;
+    private final int MIN_CHECKED = 2;
+
     private boolean checkSwipe()
     {
         int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
 
         writeLog("dist: " + Math.sqrt(dx * dx + dy * dy));
 
-        if (dx * dx + dy * dy > 300 * 300)
+        if (dx * dx + dy * dy > MIN_SWIPE_DIST * MIN_SWIPE_DIST)
         {
             if (Math.abs(dx) > Math.abs(dy))
             {
@@ -740,7 +752,8 @@ public class MainActivity extends Activity implements SensorEventListener {
        if  (x <= -100) {
            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
            if (x == -1000) writeLog("sum: " + y + " " + down);
-           if (x == -10000) writeLog("press dist: " + y);
+           if (x == -10000) writeLog("          press dist: " + y);
+           if (x == -100000) writeLog("FLAG: " + y);
            return;
        }
 
@@ -837,7 +850,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             switch (touch_mode)
             {
                 case TOUCH_MODE_CHECK:
-                    if (checked > 3) {
+                    if (checked > MIN_CHECKED) {
                         if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
                         else {
                             touch_mode = TOUCH_MODE_CLICK;
