@@ -547,6 +547,7 @@ void sendPoint(JNIEnv* env, bool touchEnd, Point result = Point())
                 Point p = points_buffer[i];
                 p.x = (float) (p.x - MIN_X) / (MAX_X - MIN_X) * screenx;
                 p.y = (float) (p.y - MIN_Y) / (MAX_Y - MIN_Y) * screeny;
+                restrict(p, 0, MAX_X, 0, MAX_Y);
                 env->CallVoidMethod(obj, callBack_method, p.x, p.y, true);
             }
         }
@@ -572,11 +573,13 @@ void sendPoint(JNIEnv* env, bool touchEnd, Point result = Point())
                 Point p = points_buffer[0];
                 p.x = (float)(p.x - MIN_X) / (MAX_X - MIN_X) * screenx;
                 p.y = (float)(p.y - MIN_Y) / (MAX_Y - MIN_Y) * screeny;
+                restrict(p, 0, MAX_X, 0, MAX_Y);
                 env->CallVoidMethod(obj,callBack_method, p.x, p.y, true);
 
                 p = points_buffer[1];
                 p.x = (float)(p.x - MIN_X) / (MAX_X - MIN_X) * screenx;
                 p.y = (float)(p.y - MIN_Y) / (MAX_Y - MIN_Y) * screeny;
+                restrict(p, 0, MAX_X, 0, MAX_Y);
                 env->CallVoidMethod(obj,callBack_method, p.x, p.y, true);
 
             }
@@ -585,6 +588,7 @@ void sendPoint(JNIEnv* env, bool touchEnd, Point result = Point())
             p.x = (float)(p.x - MIN_X) / (MAX_X - MIN_X) * screenx;
             p.y = (float)(p.y - MIN_Y) / (MAX_Y - MIN_Y) * screeny;
 
+            restrict(p, 0, MAX_X, 0, MAX_Y);
             env->CallVoidMethod(obj,callBack_method, p.x, p.y, true);
 
 

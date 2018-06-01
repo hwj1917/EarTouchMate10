@@ -796,6 +796,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     else if (x == -1 && y == 0)
                     {
                         Log.d("hwjj", "clockwise");
+                        writeLog("clockwise");
                         mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.clkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
@@ -803,6 +804,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     else if (x == 0 && y == -1)
                     {
                         Log.d("hwjj", "anticlockwise");
+                        writeLog("anticlockwise");
                         mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.anticlkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
@@ -840,6 +842,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (x == -1 && y == 0)
                     {
                         Log.d("hwjj", "clockwise");
+                        writeLog("clockwise");
                         mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.clkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
@@ -847,6 +850,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     else if (x == 0 && y == -1)
                     {
                         Log.d("hwjj", "anticlockwise");
+                        writeLog("anticlockwise");
                         mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.anticlkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
