@@ -491,10 +491,13 @@ public class MainActivity extends Activity implements SensorEventListener {
             {
                 int _x = x / xInv;
                 int _y = y / yInv;
-                int lastIndex = appIndex;
-                appIndex = _y * xSum + _x;
-                if (modeFlag && appIndex != lastIndex)
-                    mTTS.speak(appNames[appIndex] , TextToSpeech.QUEUE_FLUSH, null, "out");
+
+                if (modeFlag) {
+                    int lastIndex = appIndex;
+                    appIndex = _y * xSum + _x;
+                    if (appIndex != lastIndex)
+                        mTTS.speak(appNames[appIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
+                }
             }
         }
         else
