@@ -100,6 +100,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         private List<String> swipelrList = new LinkedList<>();
         private List<String> swipeudList = new LinkedList<>();
         private List<String> exploreList = new LinkedList<>();
+        private List<String> onlyExploreList = new LinkedList<>();
         private List<String> clkList = new LinkedList<>();
         private List<String> emptyList = new LinkedList<>();
 
@@ -121,6 +122,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             swipelrList.clear();
             swipeudList.clear();
             exploreList.clear();
+            onlyExploreList.clear();
             emptyList.clear();
             clkList.clear();
         }
@@ -157,13 +159,15 @@ public class MainActivity extends Activity implements SensorEventListener {
                 swipeudList.add(filename);
                 flag = true;
             }
-            if (exploreSum > bfexploreSum) {
-                exploreList.add(filename);
-                flag = true;
-            }
             if (clkwiseSum > bfclkwiseSum || anticlkwiseSum > bfanticlkwiseSum)
             {
                 clkList.add(filename);
+                flag = true;
+            }
+            if (exploreSum > bfexploreSum && !flag)
+                onlyExploreList.add(filename);
+            if (exploreSum > bfexploreSum) {
+                exploreList.add(filename);
                 flag = true;
             }
             if (!flag)
@@ -181,6 +185,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             Log.d("hwjj", "clockwise Sum: " + Integer.toString(clkwiseSum));
             Log.d("hwjj", "anticlockwise Sum: " + Integer.toString(anticlkwiseSum));
             Log.d("hwjj", "explore Sum: " + exploreSum);
+            Log.d("hwjj", "only explore Sum: " + onlyExploreList.size());
             writeLog("press file:");
             for (String n : pressList)
                 writeLog(n);
@@ -195,6 +200,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                 writeLog(n);
             writeLog("explore file:");
             for (String n : exploreList)
+                writeLog(n);
+            writeLog("only explore file:");
+            for (String n : onlyExploreList)
                 writeLog(n);
             writeLog("clockwise and anticlockwise file:");
             for (String n : clkList)
@@ -534,6 +542,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                             filesum++;
                         }
                         Log.d("hwjj", "file Sum: " + Integer.toString(filesum));
+                        writeLog("file sum: " + filesum);
                         st.printRes();
                         try {
                             logFile.close();                        }

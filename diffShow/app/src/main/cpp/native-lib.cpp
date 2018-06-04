@@ -88,7 +88,7 @@ Ptr<TrackerKCF> tracker[2];
 
 Point firstPoint = Point(0, 0);
 pthread_t update_threads[2];
-const int MIN_X = 0, MAX_X = 1339, MIN_Y = 0, MAX_Y = 2559;
+const int MIN_X = 0, MAX_X = 1439, MIN_Y = 0, MAX_Y = 2559;
 int last = 0, now = 1, frame_count = 0;
 int tracker_last = 1, tracker_now = 0;
 Rect2d box, box_last;
@@ -426,7 +426,7 @@ void cubicSmooth5(deque<Point>& in)
 
 bool checkSwipe(int dist)
 {
-    if (checked > CHECK_SUM) return false;
+    if (checked > CHECK_SUM) return false; //has enter explore mode.
     if (points_buffer.size() > 1) {
         int dx = points_buffer[points_buffer.size() - 1].x - points_buffer[0].x;
         int dy = points_buffer[points_buffer.size() - 1].y - points_buffer[0].y;
