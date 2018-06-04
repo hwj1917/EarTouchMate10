@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -65,6 +66,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private String[] taskperGesture = {"单手拇指", "单手食指", "双手拇指", "食指关节", "食指侧面", "手机边缘", "左耳45", "左耳0", "左耳-45", "左耳-90", "左耳半圈", "右耳45", "右耳0", "右耳-45", "右耳-90", "右耳半圈", "左耳肩膀夹住", "右耳肩膀夹住", "左右交换", "放口袋"};
     private String[] tasknames = {"绝对点击", "相对点击", "传感器"};
     private String[] filenames = {"swipe", "press", "sensor"};
+    private String[] allTypes = {"press", "swipe1", "swipe2", "swipe3", "swipe4", "move-press1", "move-press2", "layout0", "layout1", "layout2", "layout3", "layout4", "layout5", "layout6", "layout7"};
     private int taskSum = 3;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
@@ -83,9 +85,11 @@ public class MainActivity extends Activity implements SensorEventListener {
     private Statistic st = new Statistic();
 
     private FileOutputStream logFile = null;
+    private FileOutputStream logSumFile = null;
 
     class Statistic
     {
+        public int fileSum = 0;
         public int pressSum = 0;
         public int clickSum = 0;
         public int swipelSum = 0;
@@ -114,9 +118,12 @@ public class MainActivity extends Activity implements SensorEventListener {
         private int bfanticlkwiseSum = 0;
         private int bfexploreSum = 0;
 
-        public void reset()
+        private String checkingType;
+
+        public void reset(String s)
         {
-            pressSum = clickSum = swipelSum = swiperSum = swipeuSum = swipedSum = clkwiseSum = anticlkwiseSum = exploreSum = 0;
+            checkingType = s;
+            fileSum = pressSum = clickSum = swipelSum = swiperSum = swipeuSum = swipedSum = clkwiseSum = anticlkwiseSum = exploreSum = 0;
             pressList.clear();
             clickList.clear();
             swipelrList.clear();
@@ -186,30 +193,31 @@ public class MainActivity extends Activity implements SensorEventListener {
             Log.d("hwjj", "anticlockwise Sum: " + Integer.toString(anticlkwiseSum));
             Log.d("hwjj", "explore Sum: " + exploreSum);
             Log.d("hwjj", "only explore Sum: " + onlyExploreList.size());
-            writeLog("press file:");
+            writeLog(logFile, "press file:");
             for (String n : pressList)
-                writeLog(n);
-            writeLog("click file:");
+                writeLog(logFile, n);
+            writeLog(logFile, "click file:");
             for (String n : clickList)
-                writeLog(n);
-            writeLog("swipe left and right file:");
+                writeLog(logFile, n);
+            writeLog(logFile, "swipe left and right file:");
             for (String n : swipelrList)
-                writeLog(n);
-            writeLog("swipe up and down file:");
+                writeLog(logFile, n);
+            writeLog(logFile, "swipe up and down file:");
             for (String n : swipeudList)
-                writeLog(n);
-            writeLog("explore file:");
+                writeLog(logFile, n);
+            writeLog(logFile, "explore file:");
             for (String n : exploreList)
-                writeLog(n);
-            writeLog("only explore file:");
+                writeLog(logFile, n);
+            writeLog(logFile, "only explore file:");
             for (String n : onlyExploreList)
-                writeLog(n);
-            writeLog("clockwise and anticlockwise file:");
+                writeLog(logFile, n);
+            writeLog(logFile, "clockwise and anticlockwise file:");
             for (String n : clkList)
-                writeLog(n);
-            writeLog("empty file:");
+                writeLog(logFile, n);
+            writeLog(logFile, "empty file:");
             for (String n : emptyList)
-                writeLog(n);
+                writeLog(logFile, n);
+            writeLog(logSumFile, checkingType + "," + pressList.size() + "," + clickList.size() + "," + swipelrList.size() + "," + swipeudList.size() + "," + clkList.size() + "," + exploreList.size() + "," + onlyExploreList.size() + "," + emptyList.size());
         }
     }
 
@@ -289,10 +297,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         readDiffStop();
     }
 
-    private void writeLog(String log)
+    private void writeLog(FileOutputStream fo, String log)
     {
         try {
-            logFile.write((log + '\n').getBytes());
+            fo.write((log + '\n').getBytes());
         }
         catch (Exception e)
         {
@@ -498,59 +506,52 @@ public class MainActivity extends Activity implements SensorEventListener {
                 }
                 else
                 {
-                    if (!running) {
-                        String checkType = mEditText.getText().toString();
-                        File dir = new File("/sdcard/eartouch/res/" + checkType);
-                        try {
-                            logFile = new FileOutputStream(new File("/sdcard/eartouch/" + checkType + "_log.txt"));
-                        }
-                        catch (Exception e)
-                        {
-                            e.printStackTrace();
-                        }
-                        st.reset();
-                        File[] fs = dir.listFiles();
-                        int filesum = 0;
-                        for (File f : fs)
-                        {
-                            if (f.getName().contains("miaomiao") || f.getName().contains("shangxue") || f.getName().contains("wrl"))
-                                continue;
-                            String filename = "res/" + checkType + "/" + f.getName();
-                            Log.d("hwjj", filename);
-                            writeLog(filename);
-                            st.beforeRun();
-                            running = true;
-                            readFile(filename);
-                            while (running)
-                            {
-                                try {
+                    try {
+                        if (!running) {
+                            String t = mEditText.getText().toString();
+
+                            List<String> typeList = new LinkedList<>();
+                            if (t.equals("all")) {
+                                typeList.addAll(Arrays.asList(allTypes));
+                            } else typeList.add(t);
+
+                            logSumFile = new FileOutputStream(new File("/sdcard/eartouch/logsum.csv"));
+                            writeLog(logSumFile, "type,press,click,swipe left and right,swipe up and down,spin,explore,only explore,empty");
+
+                            for (String checkType : typeList) {
+                                File dir = new File("/sdcard/eartouch/res/" + checkType);
+                                logFile = new FileOutputStream(new File("/sdcard/eartouch/" + checkType + "_log.txt"));
+                                st.reset(checkType);
+                                File[] fs = dir.listFiles();
+                                for (File f : fs) {
+                                    if (f.getName().contains("miaomiao") || f.getName().contains("shangxue") || f.getName().contains("wrl"))
+                                        continue;
+                                    String filename = "res/" + checkType + "/" + f.getName();
+                                    Log.d("hwjj", filename);
+                                    writeLog(logFile, filename);
+                                    st.beforeRun();
+                                    running = true;
+                                    readFile(filename);
+                                    while (running) {
+                                        Thread.sleep(100);
+                                    }
                                     Thread.sleep(100);
+                                    st.afterRun(filename);
+                                    st.fileSum++;
                                 }
-                                catch (Exception e)
-                                {
-                                    e.printStackTrace();
-                                }
+                                Log.d("hwjj", "file Sum: " + st.fileSum);
+                                writeLog(logFile, "file sum: " + st.fileSum);
+                                st.printRes();
+                                logFile.close();
                             }
-                            try {
-                                Thread.sleep(100);
-                            }
-                            catch (Exception e)
-                            {
-                                e.printStackTrace();
-                            }
-                            st.afterRun(filename);
-                            filesum++;
-                        }
-                        Log.d("hwjj", "file Sum: " + Integer.toString(filesum));
-                        writeLog("file sum: " + filesum);
-                        st.printRes();
-                        try {
-                            logFile.close();                        }
-                        catch (Exception e)
-                        {
-                            e.printStackTrace();
+                            logSumFile.close();
                         }
                     }
+                    catch (Exception e)
+                    {
+                        e.printStackTrace();
+                    }
+
                 }
                 return true;
             case KeyEvent.KEYCODE_VOLUME_DOWN:
@@ -724,7 +725,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     {
         int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
 
-        writeLog("dist: " + Math.sqrt(dx * dx + dy * dy));
+        writeLog(logFile, "dist: " + Math.sqrt(dx * dx + dy * dy));
 
         if (dx * dx + dy * dy > MIN_SWIPE_DIST * MIN_SWIPE_DIST)
         {
@@ -733,14 +734,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (dx > 0)
                 {
                     Log.d("hwjj", "swipe right");
-                    writeLog("swipe right");
+                    writeLog(logFile, "swipe right");
                     mTTS.speak("右划", TextToSpeech.QUEUE_FLUSH, null, "out");
                     st.swiperSum++;
                 }
                 else
                 {
                     Log.d("hwjj", "swipe left");
-                    writeLog("swipe left");
+                    writeLog(logFile, "swipe left");
                     mTTS.speak("左划", TextToSpeech.QUEUE_FLUSH, null, "out");
                     st.swipelSum++;
                 }
@@ -750,14 +751,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                 if (dy > 0)
                 {
                     Log.d("hwjj", "swipe down");
-                    writeLog("swipe down");
+                    writeLog(logFile, "swipe down");
                     mTTS.speak("下划", TextToSpeech.QUEUE_FLUSH, null, "out");
                     st.swipedSum++;
                 }
                 else
                 {
                     Log.d("hwjj", "swipe up");
-                    writeLog("swipe up");
+                    writeLog(logFile, "swipe up");
                     mTTS.speak("上划", TextToSpeech.QUEUE_FLUSH, null, "out");
                     st.swipeuSum++;
                 }
@@ -772,9 +773,9 @@ public class MainActivity extends Activity implements SensorEventListener {
     public void processDiff(int x, int y, boolean down){
        if  (x <= -100) {
            Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
-           if (x == -1000) writeLog("sum: " + y + " " + down);
-           if (x == -10000) writeLog("          press dist: " + y);
-           if (x == -100000) writeLog("FLAG: " + y);
+           if (x == -1000) writeLog(logFile, "sum: " + y + " " + down);
+           if (x == -10000) writeLog(logFile, "          press dist: " + y);
+           if (x == -100000) writeLog(logFile, "FLAG: " + y);
            return;
        }
 
@@ -797,7 +798,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (x == -1 && y == -1)
                     {
                         Log.d("hwjj", "press");
-                        writeLog("press");
+                        writeLog(logFile, "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.pressSum++;
                         touch_mode = TOUCH_MODE_PRESS;
@@ -805,7 +806,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     else if (x == -1 && y == 0)
                     {
                         Log.d("hwjj", "clockwise");
-                        writeLog("clockwise");
+                        writeLog(logFile, "clockwise");
                         mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.clkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
@@ -813,7 +814,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     else if (x == 0 && y == -1)
                     {
                         Log.d("hwjj", "anticlockwise");
-                        writeLog("anticlockwise");
+                        writeLog(logFile, "anticlockwise");
                         mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.anticlkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
@@ -823,7 +824,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         else {
                             touch_mode = TOUCH_MODE_EXPLORE;
                             Log.d("hwjj", "explore");
-                            writeLog("explore");
+                            writeLog(logFile, "explore");
                             st.exploreSum++;
                             mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
                             mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
@@ -836,7 +837,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (x == -1 && y == -1)
                     {
                         Log.d("hwjj", "press");
-                        writeLog("press");
+                        writeLog(logFile, "press");
                         mTTS.speak("按压", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.pressSum++;
                         touch_mode = TOUCH_MODE_PRESS;
@@ -851,7 +852,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (x == -1 && y == 0)
                     {
                         Log.d("hwjj", "clockwise");
-                        writeLog("clockwise");
+                        writeLog(logFile, "clockwise");
                         mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.clkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
@@ -859,7 +860,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     else if (x == 0 && y == -1)
                     {
                         Log.d("hwjj", "anticlockwise");
-                        writeLog("anticlockwise");
+                        writeLog(logFile, "anticlockwise");
                         mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         st.anticlkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
@@ -882,14 +883,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                             if (y > 0 && y < 70)
                             {
                                 Log.d("hwjj", "click 1");
-                                writeLog("click1");
+                                writeLog(logFile, "click1");
                                 mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
                                 st.clickSum++;
                             }
                             else
                             {
                                 Log.d("hwjj", "click 2");
-                                writeLog("click2");
+                                writeLog(logFile, "click2");
                                 mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
                                 st.clickSum++;
                             }
