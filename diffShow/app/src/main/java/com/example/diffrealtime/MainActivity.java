@@ -308,13 +308,15 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
-    private final int RAD_QUEUE_SIZE = 5;
-    private final int RAD_CONSECUTIVE = 4;
+    private final int RAD_QUEUE_SIZE = 3;
+    private final int RAD_CONSECUTIVE = 2;
     private final double RAD_LEAP = 30;
     private Queue<Double> rad_queue = new LinkedList<>();
     private double[] rads = new double[RAD_QUEUE_SIZE];
     private int[] f = new int [RAD_QUEUE_SIZE];
     private int[] h = new int [RAD_QUEUE_SIZE];
+    private int clkwiseSum = 0;
+    private int anticlkwiseSum = 0;
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -325,88 +327,93 @@ public class MainActivity extends Activity implements SensorEventListener {
             getRotation(event);
         }
         else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
-        {/*
-            float[] values = event.values;
-            float ax = values[0];
-            float ay = values[1];
+        {
+            if (checked > 0) {
+                float[] values = event.values;
+                float ax = values[0];
+                float ay = values[1];
 
-            double g = Math.sqrt(ax * ax + ay * ay);
-            double cos = ay / g;
-            if (cos > 1) {
-                cos = 1;
-            } else if (cos < -1) {
-                cos = -1;
-            }
-            double rad = Math.acos(cos);
-            if (ax < 0) {
-                rad = 2 * Math.PI - rad;
-            }
+                double g = Math.sqrt(ax * ax + ay * ay);
+                double cos = ay / g;
+                if (cos > 1) {
+                    cos = 1;
+                } else if (cos < -1) {
+                    cos = -1;
+                }
+                double rad = Math.acos(cos);
+                if (ax < 0) {
+                    rad = 2 * Math.PI - rad;
+                }
 
-            //here we go
-            Log.d("hwjj", ""+rad);
-            rad = rad / Math.PI * 180;
-            if (rad_queue.size() == RAD_QUEUE_SIZE)
-                rad_queue.poll();
-            rad_queue.add(rad);
-            if (rad_queue.size() == RAD_QUEUE_SIZE) {
-                //clock wise
-                int i = -1;
-                int flag = 0;
-                for (Double x : rad_queue) {
-                    ++i;
-                    rads[i] = x;
-                    f[i] = 0;
-                    h[i] = i;
-                    if (i > 0 && Math.abs(rads[i] - rads[i - 1]) > 180) {
-                        if (rads[i] < rads[i - 1])
-                            rads[i] += 360;
-                        else
-                            rads[i] -= 360;
-                    }
-                    for (int j = 0; j < i; ++j)
-                        if (rads[i] < rads[j] && f[j] > f[i]) {
-                            f[i] = f[j];
-                            h[i] = h[j];
+                //here we go
+
+                rad = rad / Math.PI * 180;
+                if (rad_queue.size() == RAD_QUEUE_SIZE)
+                    rad_queue.poll();
+                rad_queue.add(rad);
+                if (rad_queue.size() == RAD_QUEUE_SIZE) {
+                    //clock wise
+                    int i = -1;
+                    int flag = 0;
+                    for (Double x : rad_queue) {
+                        ++i;
+                        rads[i] = x;
+                        f[i] = 0;
+                        h[i] = i;
+                        if (i > 0 && Math.abs(rads[i] - rads[i - 1]) > 180) {
+                            if (rads[i] < rads[i - 1])
+                                rads[i] += 360;
+                            else
+                                rads[i] -= 360;
                         }
-                    f[i]++;
-                    if (f[i] >= RAD_CONSECUTIVE && Math.abs(rads[i] - rads[h[i]]) >= RAD_LEAP)
-                        flag = (int)(Math.abs(rads[i] - rads[h[i]]) / RAD_LEAP);
-                }
-                if (flag > 0) {
-                    Log.d("hwjj", "clock wise " + flag);
-                    rad_queue.clear();
-                }
-
-                //anticlock wise
-                i = -1;
-                flag = 0;
-                for (Double x : rad_queue) {
-                    ++i;
-                    rads[i] = x;
-                    f[i] = 0;
-                    h[i] = i;
-                    if (i > 0 && Math.abs(rads[i] - rads[i - 1]) > 180) {
-                        if (rads[i] < rads[i - 1])
-                            rads[i] += 360;
-                        else
-                            rads[i] -= 360;
+                        for (int j = 0; j < i; ++j)
+                            if (rads[i] < rads[j] && f[j] > f[i]) {
+                                f[i] = f[j];
+                                h[i] = h[j];
+                            }
+                        f[i]++;
+                        if (f[i] >= RAD_CONSECUTIVE && Math.abs(rads[i] - rads[h[i]]) >= RAD_LEAP)
+                            flag = (int) (Math.abs(rads[i] - rads[h[i]]) / RAD_LEAP);
                     }
-                    for (int j = 0; j < i; ++j)
-                        if (rads[i] > rads[j] && f[j] > f[i]) {
-                            f[i] = f[j];
-                            h[i] = h[j];
-                        }
-                    f[i]++;
-                    if (f[i] >= RAD_CONSECUTIVE && Math.abs(rads[i] - rads[h[i]]) >= RAD_LEAP)
-                        flag = (int)(Math.abs(rads[i] - rads[h[i]]) / RAD_LEAP);
-                }
-                if (flag > 0) {
+                    if (flag > 0) {
+                        clkwiseSum++;
+                        rad_queue.clear();
+                    }
 
-                    Log.d("hwjj", "anti clock wise " + flag);
-                    rad_queue.clear();
+                    //anticlock wise
+                    i = -1;
+                    flag = 0;
+                    for (Double x : rad_queue) {
+                        ++i;
+                        rads[i] = x;
+                        f[i] = 0;
+                        h[i] = i;
+                        if (i > 0 && Math.abs(rads[i] - rads[i - 1]) > 180) {
+                            if (rads[i] < rads[i - 1])
+                                rads[i] += 360;
+                            else
+                                rads[i] -= 360;
+                        }
+                        for (int j = 0; j < i; ++j)
+                            if (rads[i] > rads[j] && f[j] > f[i]) {
+                                f[i] = f[j];
+                                h[i] = h[j];
+                            }
+                        f[i]++;
+                        if (f[i] >= RAD_CONSECUTIVE && Math.abs(rads[i] - rads[h[i]]) >= RAD_LEAP)
+                            flag = (int) (Math.abs(rads[i] - rads[h[i]]) / RAD_LEAP);
+                    }
+                    if (flag > 0) {
+                        anticlkwiseSum++;
+                        rad_queue.clear();
+                    }
                 }
+                //here we stop
             }
-            //here we stop*/
+            else
+            {
+                rad_queue.clear();
+            }
         }
     }
 
@@ -820,15 +827,31 @@ public class MainActivity extends Activity implements SensorEventListener {
                         touch_mode = TOUCH_MODE_SPIN;
                     }
                     else if (checked == CHECK_SUM) {
-                        if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
-                        else {
-                            touch_mode = TOUCH_MODE_EXPLORE;
-                            Log.d("hwjj", "explore");
-                            writeLog(logFile, "explore");
-                            st.exploreSum++;
-                            mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
-                            mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+
+                        if (clkwiseSum > 0 && anticlkwiseSum == 0)
+                        {
+                            touch_mode = TOUCH_MODE_SPIN;
+                            Log.d("hwjj", "clockwise");
+                            mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         }
+                        else if (anticlkwiseSum > 0 && clkwiseSum == 0)
+                        {
+                            touch_mode = TOUCH_MODE_SPIN;
+                            Log.d("hwjj", "anticlockwise");
+                            mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        }
+                        else {
+                            if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
+                            else {
+                                touch_mode = TOUCH_MODE_EXPLORE;
+                                Log.d("hwjj", "explore");
+                                writeLog(logFile, "explore");
+                                st.exploreSum++;
+                                mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                            }
+                        }
+
                         checked = 0;
                     }
                     break;
@@ -877,28 +900,40 @@ public class MainActivity extends Activity implements SensorEventListener {
             {
                 case TOUCH_MODE_CHECK:
                     if (checked > MIN_CHECKED) {
-                        if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
+                        if (clkwiseSum > 0 && anticlkwiseSum == 0)
+                        {
+                            touch_mode = TOUCH_MODE_SPIN;
+                            Log.d("hwjj", "clockwise");
+                            mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        }
+                        else if (anticlkwiseSum > 0 && clkwiseSum == 0)
+                        {
+                            touch_mode = TOUCH_MODE_SPIN;
+                            Log.d("hwjj", "anticlockwise");
+                            mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
+                        }
                         else {
-                            touch_mode = TOUCH_MODE_CLICK;
-                            if (y > 0 && y < 70)
-                            {
-                                Log.d("hwjj", "click 1");
-                                writeLog(logFile, "click1");
-                                mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
-                                st.clickSum++;
-                            }
-                            else
-                            {
-                                Log.d("hwjj", "click 2");
-                                writeLog(logFile, "click2");
-                                mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
-                                st.clickSum++;
+                            if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
+                            else {
+                                touch_mode = TOUCH_MODE_CLICK;
+                                if (y > 0 && y < 70) {
+                                    Log.d("hwjj", "click 1");
+                                    writeLog(logFile, "click1");
+                                    mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                    st.clickSum++;
+                                } else {
+                                    Log.d("hwjj", "click 2");
+                                    writeLog(logFile, "click2");
+                                    mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                    st.clickSum++;
+                                }
                             }
                         }
+
                     }
                     break;
             }
-            checked = 0;
+            checked = clkwiseSum = anticlkwiseSum = 0;
             clear_flag = true;
             touch_mode = TOUCH_MODE_CHECK;
         }
