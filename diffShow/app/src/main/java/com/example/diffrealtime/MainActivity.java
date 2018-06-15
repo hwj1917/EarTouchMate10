@@ -86,6 +86,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private FileOutputStream logFile = null;
     private FileOutputStream logSumFile = null;
+    private FileOutputStream logPointFile = null;
+    private String checkingFile;
 
     class Statistic
     {
@@ -299,24 +301,22 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private void writeLog(FileOutputStream fo, String log)
     {
-        try {
-            fo.write((log + '\n').getBytes());
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
+        if (fo != null) {
+            try {
+                fo.write((log + '\n').getBytes());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    private final int RAD_QUEUE_SIZE = 3;
-    private final int RAD_CONSECUTIVE = 2;
-    private final double RAD_LEAP = 30;
-    private Queue<Double> rad_queue = new LinkedList<>();
-    private double[] rads = new double[RAD_QUEUE_SIZE];
-    private int[] f = new int [RAD_QUEUE_SIZE];
-    private int[] h = new int [RAD_QUEUE_SIZE];
-    private int clkwiseSum = 0;
-    private int anticlkwiseSum = 0;
+    private int lastChecked = 0;
+
+    private double last_angle = -1;
+    private double total_angle = 0;
+    private int clkwise = 0;
+    private int anticlkwise = 0;
+    private boolean spinFlag = false;
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -328,92 +328,83 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
         else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
         {
-            if (checked > 0) {
-                float[] values = event.values;
-                float ax = values[0];
-                float ay = values[1];
+            /*
+            float[] values = event.values;
+            float ax = values[0];
+            float ay = values[1];
 
-                double g = Math.sqrt(ax * ax + ay * ay);
-                double cos = ay / g;
-                if (cos > 1) {
-                    cos = 1;
-                } else if (cos < -1) {
-                    cos = -1;
-                }
-                double rad = Math.acos(cos);
-                if (ax < 0) {
-                    rad = 2 * Math.PI - rad;
-                }
-
-                //here we go
-
-                rad = rad / Math.PI * 180;
-                if (rad_queue.size() == RAD_QUEUE_SIZE)
-                    rad_queue.poll();
-                rad_queue.add(rad);
-                if (rad_queue.size() == RAD_QUEUE_SIZE) {
-                    //clock wise
-                    int i = -1;
-                    int flag = 0;
-                    for (Double x : rad_queue) {
-                        ++i;
-                        rads[i] = x;
-                        f[i] = 0;
-                        h[i] = i;
-                        if (i > 0 && Math.abs(rads[i] - rads[i - 1]) > 180) {
-                            if (rads[i] < rads[i - 1])
-                                rads[i] += 360;
-                            else
-                                rads[i] -= 360;
-                        }
-                        for (int j = 0; j < i; ++j)
-                            if (rads[i] < rads[j] && f[j] > f[i]) {
-                                f[i] = f[j];
-                                h[i] = h[j];
-                            }
-                        f[i]++;
-                        if (f[i] >= RAD_CONSECUTIVE && Math.abs(rads[i] - rads[h[i]]) >= RAD_LEAP)
-                            flag = (int) (Math.abs(rads[i] - rads[h[i]]) / RAD_LEAP);
-                    }
-                    if (flag > 0) {
-                        clkwiseSum++;
-                        rad_queue.clear();
-                    }
-
-                    //anticlock wise
-                    i = -1;
-                    flag = 0;
-                    for (Double x : rad_queue) {
-                        ++i;
-                        rads[i] = x;
-                        f[i] = 0;
-                        h[i] = i;
-                        if (i > 0 && Math.abs(rads[i] - rads[i - 1]) > 180) {
-                            if (rads[i] < rads[i - 1])
-                                rads[i] += 360;
-                            else
-                                rads[i] -= 360;
-                        }
-                        for (int j = 0; j < i; ++j)
-                            if (rads[i] > rads[j] && f[j] > f[i]) {
-                                f[i] = f[j];
-                                h[i] = h[j];
-                            }
-                        f[i]++;
-                        if (f[i] >= RAD_CONSECUTIVE && Math.abs(rads[i] - rads[h[i]]) >= RAD_LEAP)
-                            flag = (int) (Math.abs(rads[i] - rads[h[i]]) / RAD_LEAP);
-                    }
-                    if (flag > 0) {
-                        anticlkwiseSum++;
-                        rad_queue.clear();
-                    }
-                }
-                //here we stop
+            double g = Math.sqrt(ax * ax + ay * ay);
+            double cos = ay / g;
+            if (cos > 1) {
+                cos = 1;
+            } else if (cos < -1) {
+                cos = -1;
             }
-            else
+            double rad = Math.acos(cos);
+            if (ax < 0) {
+                rad = 2 * Math.PI - rad;
+            }
+
+            //here we go
+
+            rad = rad / Math.PI * 180;
+
+            int spinInterval = (spinFlag ? 30 : 20);
+
+            if (lastChecked == 0 && checked > 0)
             {
-                rad_queue.clear();
+                clkwise = anticlkwise = 0;
+                total_angle = 0;
+                last_angle = -1;
+                spinFlag = false;
             }
+
+            if (checked > 0 && last_angle != -1)
+            {
+                double diff = rad - last_angle;
+                if (Math.abs(diff) > 90)
+                {
+                    if (last_angle < 180) diff -= 360;
+                    else diff += 360;
+                }
+
+                double tmp = total_angle;
+
+                total_angle += diff;
+
+                if ((tmp > 0) == (total_angle > 0))
+                {
+                    int in = Double.valueOf(total_angle / spinInterval).intValue() - Double.valueOf(tmp / spinInterval).intValue();
+                    if (in > 0) {
+                        anticlkwise++;
+                        clkwise = 0;
+                    }
+                    if (in < 0) {
+                        clkwise++;
+                        anticlkwise = 0;
+                    }
+                }
+            }
+
+            if (anticlkwise == 1)
+            {
+                Log.d("hwjj", "clockwise");
+                spinFlag = true;
+                anticlkwise = 0;
+                total_angle = 0;
+            }
+
+            if (clkwise == 1)
+            {
+                Log.d("hwjj", "anticlockwise");
+                spinFlag = true;
+                clkwise = 0;
+                total_angle = 0;
+            }
+
+            last_angle = rad;
+            lastChecked = checked;
+            */
         }
     }
 
@@ -528,28 +519,30 @@ public class MainActivity extends Activity implements SensorEventListener {
                             for (String checkType : typeList) {
                                 File dir = new File("/sdcard/eartouch/res/" + checkType);
                                 logFile = new FileOutputStream(new File("/sdcard/eartouch/" + checkType + "_log.txt"));
+                                logPointFile = new FileOutputStream(new File("/sdcard/eartouch/" + checkType + "_point.txt"));
                                 st.reset(checkType);
                                 File[] fs = dir.listFiles();
                                 for (File f : fs) {
                                     if (f.getName().contains("miaomiao") || f.getName().contains("shangxue") || f.getName().contains("wrl"))
                                         continue;
-                                    String filename = "res/" + checkType + "/" + f.getName();
-                                    Log.d("hwjj", filename);
-                                    writeLog(logFile, filename);
+                                    checkingFile = "res/" + checkType + "/" + f.getName();
+                                    Log.d("hwjj", checkingFile);
+                                    writeLog(logFile, checkingFile);
                                     st.beforeRun();
                                     running = true;
-                                    readFile(filename);
+                                    readFile(checkingFile);
                                     while (running) {
                                         Thread.sleep(100);
                                     }
                                     Thread.sleep(100);
-                                    st.afterRun(filename);
+                                    st.afterRun(checkingFile);
                                     st.fileSum++;
                                 }
                                 Log.d("hwjj", "file Sum: " + st.fileSum);
                                 writeLog(logFile, "file sum: " + st.fileSum);
                                 st.printRes();
                                 logFile.close();
+                                logPointFile.close();
                             }
                             logSumFile.close();
                         }
@@ -713,7 +706,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     private boolean clear_flag = true;
-    private final int CHECK_SUM = 50;
+    private final int CHECK_SUM = 80;
     private final int TOUCH_MODE_CHECK = 0;
     private final int TOUCH_MODE_CLICK = TOUCH_MODE_CHECK + 1;
     private final int TOUCH_MODE_EXPLORE = TOUCH_MODE_CLICK + 1;
@@ -783,6 +776,7 @@ public class MainActivity extends Activity implements SensorEventListener {
            if (x == -1000) writeLog(logFile, "sum: " + y + " " + down);
            if (x == -10000) writeLog(logFile, "          press dist: " + y);
            if (x == -100000) writeLog(logFile, "FLAG: " + y);
+           if (x == -1000000) writeLog(logFile, "pressregion: " + y);
            return;
        }
 
@@ -827,18 +821,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                         touch_mode = TOUCH_MODE_SPIN;
                     }
                     else if (checked == CHECK_SUM) {
-
-                        if (clkwiseSum > 0 && anticlkwiseSum == 0)
+                        if (spinFlag)
                         {
                             touch_mode = TOUCH_MODE_SPIN;
-                            Log.d("hwjj", "clockwise");
-                            mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
-                        }
-                        else if (anticlkwiseSum > 0 && clkwiseSum == 0)
-                        {
-                            touch_mode = TOUCH_MODE_SPIN;
-                            Log.d("hwjj", "anticlockwise");
-                            mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         }
                         else {
                             if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
@@ -852,7 +837,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                             }
                         }
 
-                        checked = 0;
+                        //checked = 0;
                     }
                     break;
                 case TOUCH_MODE_PRESS:
@@ -900,17 +885,9 @@ public class MainActivity extends Activity implements SensorEventListener {
             {
                 case TOUCH_MODE_CHECK:
                     if (checked > MIN_CHECKED) {
-                        if (clkwiseSum > 0 && anticlkwiseSum == 0)
+                        if (spinFlag)
                         {
                             touch_mode = TOUCH_MODE_SPIN;
-                            Log.d("hwjj", "clockwise");
-                            mTTS.speak("顺时针", TextToSpeech.QUEUE_FLUSH, null, "out");
-                        }
-                        else if (anticlkwiseSum > 0 && clkwiseSum == 0)
-                        {
-                            touch_mode = TOUCH_MODE_SPIN;
-                            Log.d("hwjj", "anticlockwise");
-                            mTTS.speak("逆时针", TextToSpeech.QUEUE_FLUSH, null, "out");
                         }
                         else {
                             if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
@@ -919,11 +896,13 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 if (y > 0 && y < 70) {
                                     Log.d("hwjj", "click 1");
                                     writeLog(logFile, "click1");
+                                    writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " " + checkingFile);
                                     mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
                                     st.clickSum++;
                                 } else {
                                     Log.d("hwjj", "click 2");
                                     writeLog(logFile, "click2");
+                                    writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " " + checkingFile);
                                     mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
                                     st.clickSum++;
                                 }
@@ -933,7 +912,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     }
                     break;
             }
-            checked = clkwiseSum = anticlkwiseSum = 0;
+            checked = 0;
             clear_flag = true;
             touch_mode = TOUCH_MODE_CHECK;
         }

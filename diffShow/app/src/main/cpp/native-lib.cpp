@@ -37,9 +37,9 @@
 #define CHECK_SUM 50
 #define DIRTY_SUM 32300
 
-//#define FROMFILE
+#define FROMFILE
 #define REALTIME
-#define FROMDEV
+//#define FROMDEV
 //#define RECORD
 
 using namespace cv;
@@ -94,9 +94,9 @@ int tracker_last = 1, tracker_now = 0;
 Rect2d box, box_last;
 bool succ, succ_last;
 
-const int PRESS_THRESHOLD = 2000;
+const int PRESS_THRESHOLD = 90000;
 
-int touchSum;
+int touchSum, pressRegionTouchSum;
 int checked = 0;
 bool spinFlag = false, swipeFlag = false;
 int pressFlag = 0;
@@ -609,7 +609,7 @@ Mat subMat(Mat& par, Rect r)
 
 void calcPoint(Frame &frame, JNIEnv* env) {
     bool has_find_pattern;
-    Rect patternRect;
+    Rect patternRect, pressRegionRect;
     RotatedRect firstTouch;
 
     Mat input(GRID_RES_Y, GRID_RES_X, CV_32S, frame.capacity);
@@ -661,7 +661,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         if (!last_dirty)                                         //触摸开始
         {
             //sendTCP(true);
-            touchSum = sum;
+            touchSum = matSum<uchar>(binaryImage);
+
             frame_count = 0;
             has_find_pattern = findPattern(binaryImage, patternRect, firstTouch);
 
@@ -674,6 +675,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                 trackerInit(tracker[0], binaryImage, patternRect);
                 trackerInit(tracker[1], binaryImage, patternRect);
                 pattern = binaryImage(patternRect);
+                pressRegionRect = patternRect;//
 
                 //record the first point
                 firstPoint.x = want.x;
@@ -698,6 +700,9 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                 env->CallVoidMethod(obj, callBack_method, -100000, 1, true);
                 return;
             }
+            //Mat m = subMat(input, Rect(pressRegionRect.x / 5 - 2, pressRegionRect.y / 5 - 2, 10, 12));
+            //lastPatternSum = pressRegionTouchSum = matSum<float>(m);
+
         }
         else                                            //触摸中
         {
@@ -736,7 +741,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                         frame_count = 0;
                         last_point[tracker_now] = box_point, last_point[tracker_last] = Point(rect.x, rect.y);
 
-                        pattern = subMat(binaryImage, box_last);//
+                        pattern = subMat(binaryImage, box_last);
+                        pressRegionRect = box_last;//
                     }
                     else
                     {
@@ -744,7 +750,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                         box_point = Point(box.x, box.y);
                         last_point[tracker_now] = box_point, last_point[tracker_last] = Point(box_last.x, box_last.y);
 
-                        pattern = subMat(binaryImage, box);//
+                        pattern = subMat(binaryImage, box);
+                        pressRegionRect = box;//
                     }
                 }
                 else
@@ -755,7 +762,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                     last_point[tracker_now] = box_point;
                     if (succ_last) last_point[tracker_last] = Point(box_last.x, box_last.y);
 
-                    pattern = subMat(binaryImage, box);//
+                    pattern = subMat(binaryImage, box);
+                    pressRegionRect = box;//
                 }
 
                 ptmp = box_point - last_box_point + last_result;
@@ -793,7 +801,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                     else tracker_now = 1, tracker_last = 0;
                     last_point[tracker_now] = box_point, last_point[tracker_last] = Point(rect.x, rect.y);
 
-                    pattern = subMat(binaryImage, box_last);//
+                    pattern = subMat(binaryImage, box_last);
+                    pressRegionRect = box_last;//
                 }
                 else
                 {
@@ -801,6 +810,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
                     trackerInit(tracker[tracker_last], binaryImage, rect);
                     trackerInit(tracker[tracker_now], binaryImage, rect);
                     pattern = binaryImage(rect);
+                    pressRegionRect = rect;//
                     box_point = Point(rect.x, rect.y);
 
                     last_box_point = matchPattern(lastImage, pattern);
@@ -829,21 +839,29 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         }
 
         /////////////////////////////////////check press//////////////////////////////////////////////
-        //int patternSum = matSum<uchar>(pattern);
+        //const int expand = 2;
+        //Mat m = subMat(input, Rect(pressRegionRect.x / 5 - expand, pressRegionRect.y / 5 - expand, 10, 12));
+        //int patternSum = matSum<float>(m);
+        sum = matSum<uchar>(binaryImage);
         if (pressFlag == 0 && !spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD && !checkSwipe(MAX_PRESS_DIST)) {
+        //if (pressFlag == 0 && !spinFlag && lastPatternSum < pressRegionTouchSum + 1000 && patternSum >= pressRegionTouchSum + 1000 && !checkSwipe(MAX_PRESS_DIST)) {
             env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, true);
+            //env->CallVoidMethod(obj, callBack_method, -1000000, patternSum - pressRegionTouchSum, true);
             env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
             pressFlag = 80;
         }
         else if (pressFlag > 0 && !spinFlag) {
             env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, true);
+            //env->CallVoidMethod(obj, callBack_method, -1000000, patternSum - pressRegionTouchSum, true);
             if (sum < touchSum + PRESS_THRESHOLD && !checkSwipe(MAX_PRESS_DIST)) {
+            //if (patternSum < pressRegionTouchSum + 1000 && !checkSwipe(MAX_PRESS_DIST)) {
                 env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
                 pressFlag = 0;
                 env->CallVoidMethod(obj, callBack_method, -1, -1, true);
                 checked = CHECK_SUM;
                 last_dirty = isDirty;
                 lastsum = sum;
+                //lastPatternSum= patternSum;
                 return;
             }
             else
@@ -856,6 +874,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         else
         {
             env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, false);
+            //env->CallVoidMethod(obj, callBack_method, -1000000, patternSum - pressRegionTouchSum, true);
             env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
         }
         //lastPatternSum = patternSum;
