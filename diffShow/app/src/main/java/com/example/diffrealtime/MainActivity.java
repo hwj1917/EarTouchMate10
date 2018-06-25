@@ -12,6 +12,7 @@ import android.os.Message;
 import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.preference.SwitchPreference;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.Window;
@@ -318,6 +319,12 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int anticlkwise = 0;
     private boolean spinFlag = false;
 
+    private long lastSpinEndTime = 0;
+    private final int BIG_SPIN_INTERVAL = 30;
+    private final int SMALL_SPIN_INTERVAL = 20;
+    private int firstSpinInterval = BIG_SPIN_INTERVAL;
+    private final int CONTINUOUS_SPIN_TIME = 2000;
+
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
@@ -349,15 +356,19 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             rad = rad / Math.PI * 180;
 
-            int spinInterval = (spinFlag ? 20 : 30);
-
             if (lastChecked == 0 && checked > 0)
             {
                 clkwise = anticlkwise = 0;
                 total_angle = 0;
                 last_angle = -1;
                 spinFlag = false;
+                long now = System.currentTimeMillis();
+                if (now - lastSpinEndTime > CONTINUOUS_SPIN_TIME)
+                    firstSpinInterval = BIG_SPIN_INTERVAL;
+                else firstSpinInterval = SMALL_SPIN_INTERVAL;
             }
+
+            int spinInterval = (spinFlag ? SMALL_SPIN_INTERVAL : firstSpinInterval);
 
             if (checked > 0 && last_angle != -1)
             {
@@ -370,7 +381,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 
                 double tmp = total_angle;
 
+                int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
                 total_angle += diff;
+                Log.d("spin", "" + Math.sqrt(dx * dx + dy * dy) + " " + total_angle);
 
                 if ((tmp > 0) == (total_angle > 0))
                 {
@@ -894,6 +907,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         if (spinFlag)
                         {
                             touch_mode = TOUCH_MODE_SPIN;
+                            lastSpinEndTime = System.currentTimeMillis();
                         }
                         else {
                             if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
@@ -1009,6 +1023,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             clickState = 0;
         }
     }
+
 
     /**
      * A native method that is implemented by the 'native-lib' native library,
