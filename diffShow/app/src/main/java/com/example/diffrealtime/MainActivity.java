@@ -328,7 +328,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
         else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
         {
-            /*
+
             float[] values = event.values;
             float ax = values[0];
             float ay = values[1];
@@ -349,7 +349,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             rad = rad / Math.PI * 180;
 
-            int spinInterval = (spinFlag ? 30 : 20);
+            int spinInterval = (spinFlag ? 20 : 30);
 
             if (lastChecked == 0 && checked > 0)
             {
@@ -389,6 +389,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             if (anticlkwise == 1)
             {
                 Log.d("hwjj", "clockwise");
+                mTTS.speak("1", TextToSpeech.QUEUE_FLUSH, null, "out");
                 spinFlag = true;
                 anticlkwise = 0;
                 total_angle = 0;
@@ -397,6 +398,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             if (clkwise == 1)
             {
                 Log.d("hwjj", "anticlockwise");
+                mTTS.speak("2", TextToSpeech.QUEUE_FLUSH, null, "out");
                 spinFlag = true;
                 clkwise = 0;
                 total_angle = 0;
@@ -404,7 +406,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             last_angle = rad;
             lastChecked = checked;
-            */
+
         }
     }
 
@@ -706,7 +708,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     private boolean clear_flag = true;
-    private final int CHECK_SUM = 80;
+    private final int CHECK_TIME = 1000;
     private final int TOUCH_MODE_CHECK = 0;
     private final int TOUCH_MODE_CLICK = TOUCH_MODE_CHECK + 1;
     private final int TOUCH_MODE_EXPLORE = TOUCH_MODE_CLICK + 1;
@@ -720,6 +722,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private final int MIN_SWIPE_DIST = 240;
     private final int MIN_CHECKED = 2;
+    private long check_start = 0;
+
 
     private boolean checkSwipe()
     {
@@ -796,6 +800,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                     checked++;
                     last_checked_x = x;
                     last_checked_y = y;
+                    long now = System.currentTimeMillis();
+                    if (checked == 1)
+                        check_start = now;
                     if (x == -1 && y == -1)
                     {
                         Log.d("hwjj", "press");
@@ -820,7 +827,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         st.anticlkwiseSum++;
                         touch_mode = TOUCH_MODE_SPIN;
                     }
-                    else if (checked == CHECK_SUM) {
+                    else if (checked > 0 && now - check_start > CHECK_TIME) {
                         if (spinFlag)
                         {
                             touch_mode = TOUCH_MODE_SPIN;
@@ -835,9 +842,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
                                 mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                             }
+                            checked = 0;
                         }
-
-                        //checked = 0;
                     }
                     break;
                 case TOUCH_MODE_PRESS:
@@ -893,17 +899,19 @@ public class MainActivity extends Activity implements SensorEventListener {
                             if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
                             else {
                                 touch_mode = TOUCH_MODE_CLICK;
+                                if (++clickState == 1)
+                                    new ClickThread().start();
                                 if (y > 0 && y < 70) {
-                                    Log.d("hwjj", "click 1");
+                                    //Log.d("hwjj", "click 1");
                                     writeLog(logFile, "click1");
                                     writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " " + checkingFile);
-                                    mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                    //mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
                                     st.clickSum++;
                                 } else {
-                                    Log.d("hwjj", "click 2");
+                                    //Log.d("hwjj", "click 2");
                                     writeLog(logFile, "click2");
                                     writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " " + checkingFile);
-                                    mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                    //mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
                                     st.clickSum++;
                                 }
                             }
@@ -978,7 +986,28 @@ public class MainActivity extends Activity implements SensorEventListener {
     public void notifiedEnd()
     {
         running = !running;
+    }
 
+    private int clickState = 0;
+    private final int CLICK_TIME = 300;
+    class ClickThread extends Thread
+    {
+        @Override
+        public void run()
+        {
+            try {
+                sleep(CLICK_TIME);
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+            if (clickState > 1)
+                Log.d("hwjj", "double click");
+            else
+                Log.d("hwjj", "click");
+            clickState = 0;
+        }
     }
 
     /**

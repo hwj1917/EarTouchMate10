@@ -37,9 +37,9 @@
 #define CHECK_SUM 50
 #define DIRTY_SUM 32300
 
-#define FROMFILE
+//#define FROMFILE
 #define REALTIME
-//#define FROMDEV
+#define FROMDEV
 //#define RECORD
 
 using namespace cv;
@@ -94,7 +94,7 @@ int tracker_last = 1, tracker_now = 0;
 Rect2d box, box_last;
 bool succ, succ_last;
 
-const int PRESS_THRESHOLD = 90000;
+const int PRESS_THRESHOLD = 50000;
 
 int touchSum, pressRegionTouchSum;
 int checked = 0;
@@ -106,9 +106,11 @@ bool checkSpinRectFlag;
 int checkSpinSample = 0;
 int last_angle = -1, total_angle = 0, clkwise = 0, anticlkwise = 0;
 
-const int MAX_PRESS_DIST = 240;
+const int MAX_PRESS_DIST = 80;
 const int MAX_SWIPE_DIST = 240;
 double press_dist;
+
+Rect ear, others;
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 jmethodID callBack_method, notify_method;
@@ -296,6 +298,13 @@ int matSum(Mat& m)
 
 bool findPattern(Mat& m, Rect& pattern, RotatedRect& firstTouch)
 {
+    /*
+    pattern = ear;
+    vector<Point> ps;
+    ps.push_back(Point(ear.x, ear.y));
+    ps.push_back(Point(ear.x + ear.width, ear.y + ear.height));
+    firstTouch = minAreaRect(ps);
+    return true;*/
 /*
     if (checked < CHECK_SUM)                    //find pattern was done while check spin
     {
@@ -607,7 +616,147 @@ Mat subMat(Mat& par, Rect r)
     return par(r);
 }
 
+float dist(Point2f p1, Point2f p2)
+{
+    float dx = p1.x - p2.x;
+    float dy = p1.y - p2.y;
+    return dx * dx + dy * dy;
+}
+
+vector<vector<Rect>> kMeans(int k, vector<Rect>& rects)
+{
+    vector<Point2f> centers;
+    vector<Point2f> points;
+    int* belongs = new int[rects.size()];
+    memset(belongs, -1, sizeof(int) * rects.size());
+    for (int i = 0; i < k; i++)
+        centers.push_back(Point2f(rects[i].x + rects[i].width / 2.0, rects[i].y + rects[i].height / 2.0));
+    for (int i = 0; i < rects.size(); i++)
+        points.push_back(Point2f(rects[i].x + rects[i].width / 2.0, rects[i].y + rects[i].height / 2.0));
+
+    bool stop = false;
+    while (!stop)
+    {
+        stop = true;
+        for (int i = 0; i < points.size(); i++)
+        {
+            float min_dist = 1e5;
+            int tmp = -1;
+            for (int j = 0; j < k; j++)
+            {
+                float d = dist(points[i], centers[j]);
+                if (d < min_dist)
+                    min_dist = d, tmp = j;
+            }
+            if (tmp != belongs[i])
+            {
+                stop = false;
+                belongs[i] = tmp;
+            }
+        }
+
+        if (!stop)
+        {
+            for (int i = 0; i < k; i++)
+            {
+                float xsum = 0, ysum = 0;
+                int sum = 0;
+                for (int j = 0; j < points.size(); j++)
+                    if (belongs[j] == i)
+                    {
+                        xsum += points[j].x;
+                        ysum += points[j].y;
+                        sum++;
+                    }
+                centers[i].x = xsum / sum;
+                centers[i].y = ysum / sum;
+            }
+        }
+    }
+
+    vector<vector<Rect>> clusters;
+    for (int i = 0; i < k; i++)
+    {
+        vector<Rect> _rects;
+        for (int j = 0; j < points.size(); j++)
+            if (belongs[j] == i)
+                _rects.push_back(rects[j]);
+        clusters.push_back(_rects);
+    }
+    return clusters;
+}
+
+void extractEar(vector<Rect>& rects)
+{
+    vector<vector<Rect>> clusters = kMeans(2, rects);
+
+    int miny0 = -1, miny1 = -1;
+    for (int i = 0; i < clusters[0].size(); i++)
+        if (clusters[0][i].y < miny0)
+            miny0 = clusters[0][i].y;
+
+    for (int i = 0; i < clusters[1].size(); i++)
+        if (clusters[1][i].y < miny1)
+            miny1 = clusters[1][i].y;
+
+    int target = (miny0 < miny1 ? 0 : 1);
+    int remain = (target == 0 ? 1 : 0);
+
+    Rect _ear;
+    for (int i = 0; i < clusters[target].size(); i++)
+        _ear = _ear | clusters[target][i];
+    ear = _ear;
+
+    Rect _others;
+    for (int i = 0; i < clusters[remain].size(); i++)
+        _others = _others | clusters[remain][i];
+    others = _others;
+}
+
+bool preProcess(Mat& pre)
+{
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    findContours(pre, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+    int validRect = 0;
+    Rect rectsum;
+    vector<Rect> rects;
+    for (int i = 0; i < contours.size(); i++) {
+        if (contours[i].size())
+        {
+            Rect recti = boundingRect(contours.at(i));
+            if (recti.width * recti.height > 100 && recti.width * recti.height < 4000) {
+                validRect++;
+                Rect recti = boundingRect(contours.at(i));
+                rectsum = rectsum | recti;
+                rects.push_back(recti);
+            }
+        }
+    }
+    int s = rectsum.width * rectsum.height;
+    float ratio = (float)rectsum.width / rectsum.height;
+    if (validRect > 1 || (validRect == 1 && (last_dirty || ratio > 1.3 || ratio < 1 / 1.3)))
+    {
+        if (validRect > 1 && s > 5000)
+        {
+            extractEar(rects);
+            rectsum = ear;
+        }
+        else ear = rectsum;
+        /*
+        Mat toSet = Mat::zeros(pre.size(), CV_8U);
+        Mat region = toSet(rectsum);
+        pre(rectsum).copyTo(region);
+        pre = toSet;
+         */
+        return true;
+    }
+    else return false;
+}
+
 void calcPoint(Frame &frame, JNIEnv* env) {
+
     bool has_find_pattern;
     Rect patternRect, pressRegionRect;
     RotatedRect firstTouch;
@@ -618,6 +767,16 @@ void calcPoint(Frame &frame, JNIEnv* env) {
 
     int sum = matSum<float>(input);                    //计算该帧电容和作为判断帧可靠性的依据
     bool isDirty = (sum > DIRTY_SUM);//判断该帧是否足够可靠，以确定耳朵是否抬起
+
+
+    Mat pre;
+    if (isDirty) {
+        resize(input, lanc, Size(), 5.0, 5.0, INTER_LANCZOS4);
+        threshold(lanc, pre, 70, 0, THRESH_TOZERO);        //gray
+        pre.convertTo(pre, CV_8U);
+        //if (!preProcess(pre))
+            //return;
+    }
 
     /*
     /////////////////////////////////////check press//////////////////////////////////////////////
@@ -640,9 +799,7 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         else now = 1, last = 0;
 
         Point result;
-        resize(input, lanc, Size(), 5.0, 5.0, INTER_LANCZOS4);
-        threshold(lanc, binaryImage, 70, 0, THRESH_TOZERO);        //gray
-        binaryImage.convertTo(binaryImage, CV_8U);
+        binaryImage = pre;
 
 
         /*
@@ -837,31 +994,23 @@ void calcPoint(Frame &frame, JNIEnv* env) {
 
             last_result = ptmp;
         }
-
+        /*
         /////////////////////////////////////check press//////////////////////////////////////////////
-        //const int expand = 2;
-        //Mat m = subMat(input, Rect(pressRegionRect.x / 5 - expand, pressRegionRect.y / 5 - expand, 10, 12));
-        //int patternSum = matSum<float>(m);
+
         sum = matSum<uchar>(binaryImage);
         if (pressFlag == 0 && !spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD && !checkSwipe(MAX_PRESS_DIST)) {
-        //if (pressFlag == 0 && !spinFlag && lastPatternSum < pressRegionTouchSum + 1000 && patternSum >= pressRegionTouchSum + 1000 && !checkSwipe(MAX_PRESS_DIST)) {
             env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, true);
-            //env->CallVoidMethod(obj, callBack_method, -1000000, patternSum - pressRegionTouchSum, true);
             env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
             pressFlag = 80;
         }
         else if (pressFlag > 0 && !spinFlag) {
             env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, true);
-            //env->CallVoidMethod(obj, callBack_method, -1000000, patternSum - pressRegionTouchSum, true);
             if (sum < touchSum + PRESS_THRESHOLD && !checkSwipe(MAX_PRESS_DIST)) {
-            //if (patternSum < pressRegionTouchSum + 1000 && !checkSwipe(MAX_PRESS_DIST)) {
                 env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
                 pressFlag = 0;
                 env->CallVoidMethod(obj, callBack_method, -1, -1, true);
                 checked = CHECK_SUM;
                 last_dirty = isDirty;
-                lastsum = sum;
-                //lastPatternSum= patternSum;
                 return;
             }
             else
@@ -874,12 +1023,10 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         else
         {
             env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, false);
-            //env->CallVoidMethod(obj, callBack_method, -1000000, patternSum - pressRegionTouchSum, true);
             env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
         }
-        //lastPatternSum = patternSum;
         //////////////////////////////////////////////////////////////////////////////////////////////
-
+        */
         sendPoint(env, false, result);
     }
     else                                               //触摸结束
