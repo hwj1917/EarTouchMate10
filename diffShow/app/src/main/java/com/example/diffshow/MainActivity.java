@@ -73,11 +73,15 @@ public class MainActivity extends Activity implements SensorEventListener {
     private String username = "test";
     private String[] gesturenames = {"坐姿","站姿","走动","侧卧","仰卧"};
     private String[] taskperGesture = {"单手拇指", "单手食指", "双手拇指", "食指关节", "食指侧面", "手机边缘", "左耳45", "左耳0", "左耳-45", "左耳-90", "左耳半圈", "右耳45", "右耳0", "右耳-45", "右耳-90", "右耳半圈", "左耳肩膀夹住", "右耳肩膀夹住", "左右交换", "放口袋"};
-    private String[] tasknames = {"按压中间", "移动按压上", "移动按压下",
-    "前滑动", "后滑动", "上滑动", "下滑动", "前上滑动", "后上滑动", "前下滑动", "后下滑动", "单次前旋转", "单次后旋转", "布局2航1列", "布局2航2列", "布局3航2列", "布局3航3列", "布局4航3列", "布局4航4列", "布局5航4列", "布局5航5列", "布局6航5列", "策略2布局2航1列", "策略2布局2航2列", "策略2布局3航2列", "策略2布局3航3列", "策略2布局4航3列", "策略2布局4航4列", "策略2布局5航4列", "策略2布局5航5列", "策略2布局6航5列", "自由"};
-    private String[] filenames = {"press", "move-press1", "move-press2",
-            "swipe1", "swipe2", "swipe3", "swipe4", "swipe5", "swipe6", "swipe7", "swipe8", "one-spin1", "one-spin2", "layout0", "layout1", "layout2", "layout3", "layout4", "layout5", "layout6", "layout7", "layout8", "layout9", "layout10", "layout11", "layout12", "layout13", "layout14", "layout15", "layout16", "layout17", "free"};
-    private int taskSum = 32;
+    //private String[] tasknames = {"按压中间", "移动按压上", "移动按压下",
+    //"前滑动", "后滑动", "上滑动", "下滑动", "前上滑动", "后上滑动", "前下滑动", "后下滑动", "单次前旋转", "单次后旋转", "布局2航1列", "布局2航2列", "布局3航2列", "布局3航3列", "布局4航3列", "布局4航4列", "布局5航4列", "布局5航5列", "布局6航5列", "策略2布局2航1列", "策略2布局2航2列", "策略2布局3航2列", "策略2布局3航3列", "策略2布局4航3列", "策略2布局4航4列", "策略2布局5航4列", "策略2布局5航5列", "策略2布局6航5列", "自由"};
+    //private String[] filenames = {"press", "move-press1", "move-press2",
+    //        "swipe1", "swipe2", "swipe3", "swipe4", "swipe5", "swipe6", "swipe7", "swipe8", "one-spin1", "one-spin2", "layout0", "layout1", "layout2", "layout3", "layout4", "layout5", "layout6", "layout7", "layout8", "layout9", "layout10", "layout11", "layout12", "layout13", "layout14", "layout15", "layout16", "layout17", "free"};
+    //private int taskSum = 32;
+
+    private String[] tasknames = {"前滑动", "后滑动", "上滑动", "下滑动", "单击", "双击", "旋转20", "旋转30", "脸", "手指"};
+    private String[] filenames = {"swipe1", "swipe2", "swipe3", "swipe4", "click", "double", "spin20", "spin30", "face", "finger"};
+    private int taskSum = 10;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
     private float[] rotation_vector = {0,0,0,0};
@@ -90,7 +94,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private TextToSpeech mTTS;
     private int taskIndex = 0;
     private int taskTimes = 0;
-    private final int maxTimes = 6;
+    private final int maxTimes = 11;
 
     private boolean hasInit = false;
     private long lastNotifyTime;
@@ -185,13 +189,104 @@ public class MainActivity extends Activity implements SensorEventListener {
         readDiffStop();
     }
 
+    private boolean checkSpinFlag = false;
+
+    private int lastChecked = 0;
+    private double last_angle = -1;
+    private double total_angle = 0;
+    private int clkwise = 0;
+    private int anticlkwise = 0;
+    private boolean spinFlag = false;
+
+    private int BIG_SPIN_INTERVAL = 30;
+    private int SMALL_SPIN_INTERVAL = 20;
+    private int firstSpinInterval = BIG_SPIN_INTERVAL;
+
+
     @Override
     public void onSensorChanged(SensorEvent event) {
-        if (event.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             getAccelerometer(event);
-        }
-        else if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
-            getRotation(event);
+
+            if (!checkSpinFlag) return;
+
+            float[] values = event.values;
+            float ax = values[0];
+            float ay = values[1];
+
+            double g = Math.sqrt(ax * ax + ay * ay);
+            double cos = ay / g;
+            if (cos > 1) {
+                cos = 1;
+            } else if (cos < -1) {
+                cos = -1;
+            }
+            double rad = Math.acos(cos);
+            if (ax < 0) {
+                rad = 2 * Math.PI - rad;
+            }
+
+            //here we go
+
+            rad = rad / Math.PI * 180;
+
+            if (lastChecked == 0 && checked > 0)
+            {
+                clkwise = anticlkwise = 0;
+                total_angle = 0;
+                last_angle = -1;
+                spinFlag = false;
+            }
+
+            int spinInterval = (spinFlag ? SMALL_SPIN_INTERVAL : firstSpinInterval);
+
+            if (checked > 0 && last_angle != -1)
+            {
+                double diff = rad - last_angle;
+                if (Math.abs(diff) > 90)
+                {
+                    if (last_angle < 180) diff -= 360;
+                    else diff += 360;
+                }
+
+                double tmp = total_angle;
+
+                total_angle += diff;
+
+                if ((tmp > 0) == (total_angle > 0))
+                {
+                    int in = Double.valueOf(total_angle / spinInterval).intValue() - Double.valueOf(tmp / spinInterval).intValue();
+                    if (in > 0) {
+                        anticlkwise++;
+                        clkwise = 0;
+                    }
+                    if (in < 0) {
+                        clkwise++;
+                        anticlkwise = 0;
+                    }
+                }
+            }
+
+            if (anticlkwise == 1)
+            {
+                Log.d("hwjj", "clockwise");
+                mTTS.speak("1", TextToSpeech.QUEUE_FLUSH, null, "out");
+                spinFlag = true;
+                anticlkwise = 0;
+                total_angle = 0;
+            }
+
+            if (clkwise == 1)
+            {
+                Log.d("hwjj", "anticlockwise");
+                mTTS.speak("2", TextToSpeech.QUEUE_FLUSH, null, "out");
+                spinFlag = true;
+                clkwise = 0;
+                total_angle = 0;
+            }
+
+            last_angle = rad;
+            lastChecked = checked;
         }
 
     }
@@ -209,6 +304,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     if (isrecording) {
                         isrecording = false;
                         feedbackFlag = false;
+                        checkSpinFlag = false;
                         mTTS.speak("记录结束", TextToSpeech.QUEUE_FLUSH, null, "out");
                         final String tn = filenames[taskIndex];
                         new Thread(new Runnable() {
@@ -295,6 +391,13 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     pointSeq.add(index);
                             }
                             Collections.shuffle(pointSeq);
+                        }
+
+                        if (tmp.equals("spi"))
+                        {
+                            checkSpinFlag = true;
+                            SMALL_SPIN_INTERVAL = Integer.valueOf(filenames[taskIndex].substring(4));
+                            BIG_SPIN_INTERVAL = SMALL_SPIN_INTERVAL + 10;
                         }
 
                         String speak = tasknames[taskIndex] + "记录开始";
@@ -414,21 +517,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             return;
         }
 
-        //Log.d("sensor","acc");
-        final float alpha = 0.8f;
-        // Isolate the force of gravity with the low-pass filter.
-        gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0];
-        gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1];
-        gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2];
-
-        // Remove the gravity contribution with the high-pass filter.
-        linear_acceleration[0] = event.values[0] - gravity[0];
-        linear_acceleration[1] = event.values[1] - gravity[1];
-        linear_acceleration[2] = event.values[2] - gravity[2];
-
-
-        sensorData[sensorCountSave++] = Float.toString(linear_acceleration[0]) + " " + Float.toString(linear_acceleration[1]) + " " +Float.toString(linear_acceleration[2]) + '\n';
-
+        sensorData[sensorCountSave++] = Long.toString(System.currentTimeMillis() * 10) + " " + Float.toString(event.values[0]) + " " + Float.toString(event.values[1]) + " " +Float.toString(event.values[2]) + '\n';
     }
 
     private void getRotation(SensorEvent event){
@@ -442,13 +531,13 @@ public class MainActivity extends Activity implements SensorEventListener {
     private void initSensors()
     {
         sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
-        sensor_accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        sensor_accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensor_rotation = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         sensorManager.registerListener(this,
                 sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
                 SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(this,
-                sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
+                sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
                 SensorManager.SENSOR_DELAY_NORMAL);
 
     }
@@ -557,7 +646,12 @@ public class MainActivity extends Activity implements SensorEventListener {
            return;
         }
 
-        if (!feedbackFlag) return;
+        if (!feedbackFlag)
+        {
+            if (down) checked++;
+            else checked = 0;
+            return;
+        }
 
         String fn = filenames[taskIndex];
         if (down) {
@@ -715,7 +809,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             if (t - lastNotifyTime > 1000) {
                 lastNotifyTime = t;
-                if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor") && !filenames[taskIndex].substring(0, 3).equals("lay")) {
+                if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor") && !filenames[taskIndex].substring(0, 3).equals("lay") && !filenames[taskIndex].equals("double") && !filenames[taskIndex].substring(0, 3).equals("spi")) {
                     if (taskTimes == 1) mTTS.speak("尝试结束", TextToSpeech.QUEUE_FLUSH, null, "out");
                     else
                         mTTS.speak(Integer.toString(taskTimes - 1), TextToSpeech.QUEUE_FLUSH, null, "out");
