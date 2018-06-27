@@ -241,6 +241,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     };
 
+    private SceneHandler sceneHandler;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -263,7 +265,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         LinearLayout ll = findViewById(R.id.linearLayout);
         mDrawView = new DrawView(this);
         mEditText = new EditText(this);
-        ll.addView(mEditText);
+        //ll.addView(mEditText);
         if (!RECORD)
             ll.addView(mDrawView);
 
@@ -275,6 +277,8 @@ public class MainActivity extends Activity implements SensorEventListener {
                 mTTS.setLanguage(Locale.CHINA);
             }
         });
+
+        sceneHandler = new SceneHandler(mTTS);
 
         /*
         capacityView = findViewById(R.id.capacityView);
@@ -321,7 +325,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private long lastSpinEndTime = 0;
     private final int BIG_SPIN_INTERVAL = 30;
-    private final int SMALL_SPIN_INTERVAL = 20;
+    private final int SMALL_SPIN_INTERVAL = 15;
     private int firstSpinInterval = BIG_SPIN_INTERVAL;
     private final int CONTINUOUS_SPIN_TIME = 2000;
 
@@ -335,10 +339,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
         else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
         {
-
             float[] values = event.values;
             float ax = values[0];
             float ay = values[1];
+            Log.d("spin", "" + values[0] + " " + values[1] + " " + values[2]);
 
             double g = Math.sqrt(ax * ax + ay * ay);
             double cos = ay / g;
@@ -381,9 +385,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
                 double tmp = total_angle;
 
-                int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
                 total_angle += diff;
-                Log.d("spin", "" + Math.sqrt(dx * dx + dy * dy) + " " + total_angle);
 
                 if ((tmp > 0) == (total_angle > 0))
                 {
@@ -402,7 +404,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             if (anticlkwise == 1)
             {
                 Log.d("hwjj", "clockwise");
-                mTTS.speak("1", TextToSpeech.QUEUE_FLUSH, null, "out");
+                sceneHandler.handleOP(sceneHandler.OP_CLKWISE, -1, -1);
                 spinFlag = true;
                 anticlkwise = 0;
                 total_angle = 0;
@@ -411,7 +413,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             if (clkwise == 1)
             {
                 Log.d("hwjj", "anticlockwise");
-                mTTS.speak("2", TextToSpeech.QUEUE_FLUSH, null, "out");
+                sceneHandler.handleOP(sceneHandler.OP_ANTICLKWISE, -1, -1);
                 spinFlag = true;
                 clkwise = 0;
                 total_angle = 0;
@@ -432,160 +434,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_VOLUME_UP:
-                if (RECORD) {
-                    if (isrecording) {
-                    /*
-                    if (mediaPlayer.isPlaying() == true) {
-                        mediaPlayer.pause();
-                    }
-                    */
-                        isrecording = false;
-                        mTTS.speak("记录结束", TextToSpeech.QUEUE_FLUSH, null, "out");
-                        final String tn = filenames[taskIndex];
-                        new Thread(new Runnable() {
-                            public void run() {
-                                String filename = "/sdcard/eartouch/" + username + "_" + tn + ".txt";
-
-                                //String sensorname = "/sdcard/sensor_" + filenames[times_save] + "_" + username + ".txt";
-                            /*
-                            times_save += 1;
-                            if(times_save != filenames.length - 5) {
-                                //int gesture_num = times_save / tasknames.length;
-                                //int task_num = times_save % tasknames.length;
-                                int gesture_num = times_save / taskperGesture.length;
-                                int task_num = times_save % taskperGesture.length;
-                                if (gesture_num >= 3 && task_num >= taskperGesture.length-4){
-                                    times_save += 4;
-                                    gesture_num = times_save / taskperGesture.length;
-                                    task_num = times_save % taskperGesture.length;
-                                }
-
-                                capacityView.task_name = taskperGesture[task_num];
-                                capacityView.gesture_name = gesturenames[gesture_num];
-                                capacityView.task_index = Integer.toString(times_save);
-
-                            }
-                            else {
-
-                                capacityView.task_name = "结束啦";
-                                capacityView.gesture_name = "";
-
-                            }
-                            capacityView.istapping = false;
-                            capacityView.isrecording = false;
-                            capacityView.resetCapacity();
-                            capacityView.invalidate();
-                            */
-                                if (tn.equals("sensor"))
-                                    writeSensors(sensorData, sensorCountSave, filename);
-                                else writeIntoFile(saveData, timeDataLong, countSave, filename);
-                            /*
-                            if (times_save == filenames.length - 1) {
-                                capacityView.isrecording = true;
-                                capacityView.invalidate();
-                            }
-                            */
-                                //writeIntoFile(saveData, timeData, countSave, filename);
-                                //writeIntoFile(saveDataString,timeData,countSave,filename);
-                            }
-                        }).start();
-                        if (++taskIndex == taskSum)
-                            taskIndex = 0;
-                        mEditText.setEnabled(true);
-
-                    } else {
-                        isrecording = true;
-                        countSave = 0;
-                        sensorCountSave = 0;
-                        taskTimes = 0;
-                        saveData = new short[amountSave * num_pixel];
-                        timeDataLong = new Long[amountSave];
-                        username = mEditText.getText().toString();
-                        mEditText.setEnabled(false);
-                        mTTS.speak(tasknames[taskIndex] + "记录开始", TextToSpeech.QUEUE_FLUSH, null, "out");
-                    /*
-                    if (mediaPlayer.isPlaying() == false) {
-                        mediaPlayer.start();
-                        mediaPlayer.setLooping(true);
-                    }
-                    capacityView.isrecording = true;
-                    if (times_save % taskperGesture.length < finger_index) // tapping but not ear
-                    {
-                        capacityView.istapping = true;
-                    }
-                    capacityView.invalidate();
-                    */
-                    }
-                }
-                else
-                {
-                    try {
-                        if (!running) {
-                            String t = mEditText.getText().toString();
-
-                            List<String> typeList = new LinkedList<>();
-                            if (t.equals("all")) {
-                                typeList.addAll(Arrays.asList(allTypes));
-                            } else typeList.add(t);
-
-                            logSumFile = new FileOutputStream(new File("/sdcard/eartouch/logsum.csv"));
-                            writeLog(logSumFile, "type,press,click,swipe left and right,swipe up and down,spin,explore,only explore,empty");
-
-                            for (String checkType : typeList) {
-                                File dir = new File("/sdcard/eartouch/res/" + checkType);
-                                logFile = new FileOutputStream(new File("/sdcard/eartouch/" + checkType + "_log.txt"));
-                                logPointFile = new FileOutputStream(new File("/sdcard/eartouch/" + checkType + "_point.txt"));
-                                st.reset(checkType);
-                                File[] fs = dir.listFiles();
-                                for (File f : fs) {
-                                    if (f.getName().contains("miaomiao") || f.getName().contains("shangxue") || f.getName().contains("wrl"))
-                                        continue;
-                                    checkingFile = "res/" + checkType + "/" + f.getName();
-                                    Log.d("hwjj", checkingFile);
-                                    writeLog(logFile, checkingFile);
-                                    st.beforeRun();
-                                    running = true;
-                                    readFile(checkingFile);
-                                    while (running) {
-                                        Thread.sleep(100);
-                                    }
-                                    Thread.sleep(100);
-                                    st.afterRun(checkingFile);
-                                    st.fileSum++;
-                                }
-                                Log.d("hwjj", "file Sum: " + st.fileSum);
-                                writeLog(logFile, "file sum: " + st.fileSum);
-                                st.printRes();
-                                logFile.close();
-                                logPointFile.close();
-                            }
-                            logSumFile.close();
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        e.printStackTrace();
-                    }
-
-                }
-                return true;
-            case KeyEvent.KEYCODE_VOLUME_DOWN:
-                if (RECORD) {
-                    if (!isrecording) {
-                        if (--taskIndex < 0)
-                            taskIndex = taskSum - 1;
-                        mTTS.speak("重做" + tasknames[taskIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
-                    }
-                }
-                /*
-                if (mediaPlayer.isPlaying() == true) {
-                    mediaPlayer.pause();
-                }
-                capacityView.isrecording = false;
-                capacityView.istapping = false;
-                capacityView.resetCapacity();
-                capacityView.invalidate();
-                */
+                sceneHandler.nextScene();
                 return true;
             default:
                 break;
@@ -752,14 +601,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                 {
                     Log.d("hwjj", "swipe right");
                     writeLog(logFile, "swipe right");
-                    mTTS.speak("右划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    sceneHandler.handleOP(sceneHandler.OP_SWIPE_RIGHT, -1, -1);
                     st.swiperSum++;
                 }
                 else
                 {
                     Log.d("hwjj", "swipe left");
                     writeLog(logFile, "swipe left");
-                    mTTS.speak("左划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    sceneHandler.handleOP(sceneHandler.OP_SWIPE_LEFT, -1, -1);
                     st.swipelSum++;
                 }
             }
@@ -769,14 +618,14 @@ public class MainActivity extends Activity implements SensorEventListener {
                 {
                     Log.d("hwjj", "swipe down");
                     writeLog(logFile, "swipe down");
-                    mTTS.speak("下划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    sceneHandler.handleOP(sceneHandler.OP_SWIPE_DOWN, -1, -1);
                     st.swipedSum++;
                 }
                 else
                 {
                     Log.d("hwjj", "swipe up");
                     writeLog(logFile, "swipe up");
-                    mTTS.speak("上划", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    sceneHandler.handleOP(sceneHandler.OP_SWIPE_UP, -1, -1);
                     st.swipeuSum++;
                 }
             }
@@ -814,8 +663,10 @@ public class MainActivity extends Activity implements SensorEventListener {
                     last_checked_x = x;
                     last_checked_y = y;
                     long now = System.currentTimeMillis();
-                    if (checked == 1)
+                    if (checked == 1) {
                         check_start = now;
+                        sceneHandler.handleOP(sceneHandler.OP_FIRST_TOUCH, -1, -1);
+                    }
                     if (x == -1 && y == -1)
                     {
                         Log.d("hwjj", "press");
@@ -852,7 +703,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 Log.d("hwjj", "explore");
                                 writeLog(logFile, "explore");
                                 st.exploreSum++;
-                                mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                sceneHandler.handleOP(sceneHandler.OP_LONG_PRESS, x, y);
                                 mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                             }
                             checked = 0;
@@ -873,6 +724,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         DrawView.points_x.add(x);
                         DrawView.points_y.add(y);
                         mDrawView.postInvalidate();
+                        sceneHandler.handleOP(sceneHandler.OP_EXPLORE, x, y);
                     }
                     break;
                 case TOUCH_MODE_SPIN:
@@ -902,6 +754,13 @@ public class MainActivity extends Activity implements SensorEventListener {
         else {
             switch (touch_mode)
             {
+                case TOUCH_MODE_SPIN:
+                    lastSpinEndTime = System.currentTimeMillis();
+                    sceneHandler.handleOP(sceneHandler.OP_LEAVE, -1, -1);
+                    break;
+                case TOUCH_MODE_EXPLORE:
+                    sceneHandler.handleOP(sceneHandler.OP_LEAVE, -1, -1);
+                    break;
                 case TOUCH_MODE_CHECK:
                     if (checked > MIN_CHECKED) {
                         if (spinFlag)
@@ -916,21 +775,16 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 if (++clickState == 1)
                                     new ClickThread().start();
                                 if (y > 0 && y < 70) {
-                                    //Log.d("hwjj", "click 1");
                                     writeLog(logFile, "click1");
                                     writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " " + checkingFile);
-                                    //mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
                                     st.clickSum++;
                                 } else {
-                                    //Log.d("hwjj", "click 2");
                                     writeLog(logFile, "click2");
                                     writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " " + checkingFile);
-                                    //mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
                                     st.clickSum++;
                                 }
                             }
                         }
-
                     }
                     break;
             }
@@ -1016,10 +870,15 @@ public class MainActivity extends Activity implements SensorEventListener {
             {
                 e.printStackTrace();
             }
-            if (clickState > 1)
+            if (clickState > 1) {
                 Log.d("hwjj", "double click");
-            else
+                sceneHandler.handleOP(sceneHandler.OP_DOUBLE_CLICK, -1, -1);
+            }
+            else {
                 Log.d("hwjj", "click");
+                sceneHandler.handleOP(sceneHandler.OP_CLICK, -1, -1);
+                sceneHandler.handleOP(sceneHandler.OP_LEAVE, -1, -1);
+            }
             clickState = 0;
         }
     }
