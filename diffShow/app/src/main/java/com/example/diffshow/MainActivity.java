@@ -80,7 +80,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     //private int taskSum = 32;
 
     private String[] tasknames = {"前滑动", "后滑动", "上滑动", "下滑动", "单击", "双击", "旋转20", "旋转30", "脸", "手指"};
-    private String[] filenames = {"swipe1", "swipe2", "swipe3", "swipe4", "click", "double", "spin20", "spin30", "face", "finger"};
+    private String[] filenames = {"swipe1", "swipe2", "swipe3", "swipe4", "click", "double", "spin10", "spin30", "face", "finger"};
     private int taskSum = 10;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
@@ -397,7 +397,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                         {
                             checkSpinFlag = true;
                             SMALL_SPIN_INTERVAL = Integer.valueOf(filenames[taskIndex].substring(4));
-                            BIG_SPIN_INTERVAL = SMALL_SPIN_INTERVAL + 10;
+                            BIG_SPIN_INTERVAL = Math.max(SMALL_SPIN_INTERVAL + 10, 30);
                         }
 
                         String speak = tasknames[taskIndex] + "记录开始";
