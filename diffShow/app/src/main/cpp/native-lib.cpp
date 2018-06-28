@@ -36,6 +36,7 @@
 #define KCF_REFRESH_INTERVAL 25
 #define CHECK_SUM 50
 #define DIRTY_SUM 32300
+#define EAR_DIRTY_SUM DIRTY_SUM + 1500
 
 //#define FROMFILE
 #define REALTIME
@@ -112,7 +113,7 @@ double press_dist;
 
 Rect ear, others;
 bool earModeFlag = false;
-const int EAR_CHECK_SUM = 10;
+const int EAR_CHECK_SUM = 5;
 int earCheck = EAR_CHECK_SUM;
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -731,13 +732,12 @@ bool extractEar(vector<Rect>& rects)
     }
 }
 
-bool preProcess(Mat& pre)
+bool preProcess(Mat& pre, JNIEnv* env)
 {
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     findContours(pre, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
-    int validRect = 0;
     Rect rectsum;
     vector<Rect> rects;
     vector<Point> points;
@@ -747,7 +747,6 @@ bool preProcess(Mat& pre)
             Rect recti = boundingRect(contours.at(i));
 
             if (recti.width * recti.height > 100) {
-                validRect++;
                 Rect recti = boundingRect(contours.at(i));
                 rectsum = rectsum | recti;
                 rects.push_back(recti);
@@ -755,15 +754,17 @@ bool preProcess(Mat& pre)
             }
         }
     }
+
     if (!points.empty())
     {
+
         RotatedRect minRect = minAreaRect(points);
         float ratio = (float)minRect.size.width / minRect.size.height;
 
         if (minRect.size.width * minRect.size.height > 2000 && (ratio > 2.6 || ratio < 1 / 2.6))
         {
             bool earFlag = true;
-            if (validRect > 1)
+            if (rects.size() > 1)
             {
                 earFlag = extractEar(rects);
                 rectsum = ear;
@@ -772,6 +773,7 @@ bool preProcess(Mat& pre)
         }
         else return false;
     }
+    else return false;
 }
 
 void calcPoint(Frame &frame, JNIEnv* env) {
@@ -793,10 +795,11 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         resize(input, lanc, Size(), 5.0, 5.0, INTER_LANCZOS4);
         threshold(lanc, pre, 70, 0, THRESH_TOZERO);        //gray
         pre.convertTo(pre, CV_8U);
+
+        env->CallVoidMethod(obj, callBack_method, -100000, sum, true);
         if (!earModeFlag) {
-            if (preProcess(pre))
+            if (sum > EAR_DIRTY_SUM && preProcess(pre, env))
             {
-                env->CallVoidMethod(obj, callBack_method, -9999, 1, true);
                 if (--earCheck == 0) {
                     earModeFlag = true;
                     env->CallVoidMethod(obj, callBack_method, -10000000, 1, true);

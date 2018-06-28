@@ -657,6 +657,7 @@ public class MainActivity extends Activity implements SensorEventListener {
            if (x == -10000000)
            {
                nextEarModeFLag = true;
+               mTTS.speak("进入耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
            }
            return;
         }
@@ -665,7 +666,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         {
             earModeFlag = true;
             nextEarModeFLag = false;
-            mTTS.speak("进入耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
         }
 
         if (!earModeFlag) return;
