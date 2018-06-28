@@ -111,6 +111,9 @@ const int MAX_SWIPE_DIST = 240;
 double press_dist;
 
 Rect ear, others;
+bool earModeFlag = false;
+const int EAR_CHECK_SUM = 10;
+int earCheck = EAR_CHECK_SUM;
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 jmethodID callBack_method, notify_method;
@@ -623,9 +626,10 @@ float dist(Point2f p1, Point2f p2)
     return dx * dx + dy * dy;
 }
 
+vector<Point2f> centers;
+
 vector<vector<Rect>> kMeans(int k, vector<Rect>& rects)
 {
-    vector<Point2f> centers;
     vector<Point2f> points;
     int* belongs = new int[rects.size()];
     memset(belongs, -1, sizeof(int) * rects.size());
@@ -686,31 +690,45 @@ vector<vector<Rect>> kMeans(int k, vector<Rect>& rects)
     return clusters;
 }
 
-void extractEar(vector<Rect>& rects)
+bool extractEar(vector<Rect>& rects)
 {
     vector<vector<Rect>> clusters = kMeans(2, rects);
 
-    int miny0 = -1, miny1 = -1;
-    for (int i = 0; i < clusters[0].size(); i++)
-        if (clusters[0][i].y < miny0)
-            miny0 = clusters[0][i].y;
+    if (dist(centers[0], centers[1]) < 50 * 50)
+    {
+        Rect _ear;
+        for (int i = 0; i < clusters[0].size(); i++)
+            _ear = _ear | clusters[0][i];
+        for (int i = 0; i < clusters[1].size(); i++)
+            _ear = _ear | clusters[1][i];
+        ear = _ear;
+        return true;
+    }
+    else
+    {
+        int miny0 = -1, miny1 = -1;
+        for (int i = 0; i < clusters[0].size(); i++)
+            if (clusters[0][i].y < miny0)
+                miny0 = clusters[0][i].y;
 
-    for (int i = 0; i < clusters[1].size(); i++)
-        if (clusters[1][i].y < miny1)
-            miny1 = clusters[1][i].y;
+        for (int i = 0; i < clusters[1].size(); i++)
+            if (clusters[1][i].y < miny1)
+                miny1 = clusters[1][i].y;
 
-    int target = (miny0 < miny1 ? 0 : 1);
-    int remain = (target == 0 ? 1 : 0);
+        int target = (miny0 < miny1 ? 0 : 1);
+        int remain = (target == 0 ? 1 : 0);
 
-    Rect _ear;
-    for (int i = 0; i < clusters[target].size(); i++)
-        _ear = _ear | clusters[target][i];
-    ear = _ear;
+        Rect _ear;
+        for (int i = 0; i < clusters[target].size(); i++)
+            _ear = _ear | clusters[target][i];
+        ear = _ear;
 
-    Rect _others;
-    for (int i = 0; i < clusters[remain].size(); i++)
-        _others = _others | clusters[remain][i];
-    others = _others;
+        Rect _others;
+        for (int i = 0; i < clusters[remain].size(); i++)
+            _others = _others | clusters[remain][i];
+        others = _others;
+        return false;
+    }
 }
 
 bool preProcess(Mat& pre)
@@ -722,37 +740,38 @@ bool preProcess(Mat& pre)
     int validRect = 0;
     Rect rectsum;
     vector<Rect> rects;
+    vector<Point> points;
     for (int i = 0; i < contours.size(); i++) {
         if (contours[i].size())
         {
             Rect recti = boundingRect(contours.at(i));
-            if (recti.width * recti.height > 100 && recti.width * recti.height < 4000) {
+
+            if (recti.width * recti.height > 100) {
                 validRect++;
                 Rect recti = boundingRect(contours.at(i));
                 rectsum = rectsum | recti;
                 rects.push_back(recti);
+                points.insert(points.end(), contours[i].begin(), contours[i].end());
             }
         }
     }
-    int s = rectsum.width * rectsum.height;
-    float ratio = (float)rectsum.width / rectsum.height;
-    if (validRect > 1 || (validRect == 1 && (last_dirty || ratio > 1.3 || ratio < 1 / 1.3)))
+    if (!points.empty())
     {
-        if (validRect > 1 && s > 5000)
+        RotatedRect minRect = minAreaRect(points);
+        float ratio = (float)minRect.size.width / minRect.size.height;
+
+        if (minRect.size.width * minRect.size.height > 2000 && (ratio > 2.6 || ratio < 1 / 2.6))
         {
-            extractEar(rects);
-            rectsum = ear;
+            bool earFlag = true;
+            if (validRect > 1)
+            {
+                earFlag = extractEar(rects);
+                rectsum = ear;
+            }
+            return earFlag;
         }
-        else ear = rectsum;
-        /*
-        Mat toSet = Mat::zeros(pre.size(), CV_8U);
-        Mat region = toSet(rectsum);
-        pre(rectsum).copyTo(region);
-        pre = toSet;
-         */
-        return true;
+        else return false;
     }
-    else return false;
 }
 
 void calcPoint(Frame &frame, JNIEnv* env) {
@@ -774,22 +793,23 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         resize(input, lanc, Size(), 5.0, 5.0, INTER_LANCZOS4);
         threshold(lanc, pre, 70, 0, THRESH_TOZERO);        //gray
         pre.convertTo(pre, CV_8U);
-        //if (!preProcess(pre))
-            //return;
+        if (!earModeFlag) {
+            if (preProcess(pre))
+            {
+                env->CallVoidMethod(obj, callBack_method, -9999, 1, true);
+                if (--earCheck == 0) {
+                    earModeFlag = true;
+                    env->CallVoidMethod(obj, callBack_method, -10000000, 1, true);
+                }
+            }
+            else
+            {
+                earCheck = EAR_CHECK_SUM;
+            }
+        }
     }
+    else earCheck = EAR_CHECK_SUM;
 
-    /*
-    /////////////////////////////////////check press//////////////////////////////////////////////
-    if (!spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD) {
-        env->CallVoidMethod(obj,callBack_method, -1, -1, true);
-        checked = CHECK_SUM;
-        last_dirty = isDirty;
-        lastsum = sum;
-        usleep(1000000);
-        return;
-    }
-    //////////////////////////////////////////////////////////////////////////////////////////////
-    */
     if (isDirty)
     {
         Mat& binaryImage = Image[now];
@@ -1227,4 +1247,10 @@ Java_com_example_diffrealtime_MainActivity_readFile(JNIEnv *env, jobject instanc
     LOGD("shit");
     obj = env->NewGlobalRef(instance);
     pthread_create(&thread_2, NULL, handleFrame, obj);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_diffrealtime_MainActivity_quitEarMode(JNIEnv *env, jobject instance) {
+    earModeFlag = false;
 }

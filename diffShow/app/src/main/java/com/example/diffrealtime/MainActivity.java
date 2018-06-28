@@ -88,7 +88,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private FileOutputStream logFile = null;
     private FileOutputStream logSumFile = null;
     private FileOutputStream logPointFile = null;
-    private String checkingFile;
+    private boolean earModeFlag = false;
 
     class Statistic
     {
@@ -328,6 +328,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private final int SMALL_SPIN_INTERVAL = 15;
     private int firstSpinInterval = BIG_SPIN_INTERVAL;
     private final int CONTINUOUS_SPIN_TIME = 2000;
+    private final int QUIT_EAR_MODE_VALUE = 8;
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -342,7 +343,15 @@ public class MainActivity extends Activity implements SensorEventListener {
             float[] values = event.values;
             float ax = values[0];
             float ay = values[1];
+            float az = values[2];
             Log.d("spin", "" + values[0] + " " + values[1] + " " + values[2]);
+
+            if (Math.abs(az) > 8 && earModeFlag)
+            {
+                mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
+                earModeFlag = false;
+                quitEarMode();
+            }
 
             double g = Math.sqrt(ax * ax + ay * ay);
             double cos = ay / g;
@@ -636,15 +645,30 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
+    private boolean nextEarModeFLag = false;
+
     public void processDiff(int x, int y, boolean down){
-       if  (x <= -100) {
-           Log.d("READ", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
+        if  (x <= -100) {
+           Log.d("LOGGGG", Integer.toString(x) + ' ' + Integer.toString(y) + ' ' + Boolean.toString(down));
            if (x == -1000) writeLog(logFile, "sum: " + y + " " + down);
            if (x == -10000) writeLog(logFile, "          press dist: " + y);
            if (x == -100000) writeLog(logFile, "FLAG: " + y);
            if (x == -1000000) writeLog(logFile, "pressregion: " + y);
+           if (x == -10000000)
+           {
+               nextEarModeFLag = true;
+           }
            return;
-       }
+        }
+
+        if (!down && nextEarModeFLag)
+        {
+            earModeFlag = true;
+            nextEarModeFLag = false;
+            mTTS.speak("进入耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
+        }
+
+        if (!earModeFlag) return;
 
         if (down) {
             if (clear_flag)
@@ -776,11 +800,11 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     new ClickThread().start();
                                 if (y > 0 && y < 70) {
                                     writeLog(logFile, "click1");
-                                    writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " " + checkingFile);
+                                    writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " ");
                                     st.clickSum++;
                                 } else {
                                     writeLog(logFile, "click2");
-                                    writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " " + checkingFile);
+                                    writeLog(logPointFile, "" + last_checked_x + " " + last_checked_y + " ");
                                     st.clickSum++;
                                 }
                             }
@@ -891,6 +915,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     public native void readDiffStart();
     public native void readDiffStop();
     public native void readFile(String filename);
+    public native void quitEarMode();
 
     private Socket socket = null;
     private OutputStream outputStream;
