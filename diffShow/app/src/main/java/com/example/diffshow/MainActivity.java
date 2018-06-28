@@ -398,6 +398,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                             checkSpinFlag = true;
                             SMALL_SPIN_INTERVAL = Integer.valueOf(filenames[taskIndex].substring(4));
                             BIG_SPIN_INTERVAL = Math.max(SMALL_SPIN_INTERVAL + 10, 30);
+                            firstSpinInterval = BIG_SPIN_INTERVAL;
                         }
 
                         String speak = tasknames[taskIndex] + "记录开始";
@@ -517,7 +518,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             return;
         }
 
-        sensorData[sensorCountSave++] = Long.toString(System.currentTimeMillis() * 10) + " " + Float.toString(event.values[0]) + " " + Float.toString(event.values[1]) + " " +Float.toString(event.values[2]) + '\n';
+        sensorData[sensorCountSave++] = Long.toString(System.currentTimeMillis()) + " " + Float.toString(event.values[0]) + " " + Float.toString(event.values[1]) + " " +Float.toString(event.values[2]) + '\n';
     }
 
     private void getRotation(SensorEvent event){
@@ -840,7 +841,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         long time=System.currentTimeMillis();
 
-        timeDataLong[countSave] = time * 10;
+        timeDataLong[countSave] = time;
 
         /*
         sensorData[countSave] = Float.toString(linear_acceleration[0]) + " " + Float.toString(linear_acceleration[1]) + " " +Float.toString(linear_acceleration[2]) + " " + Float.toString(rotation_vector[0]) + " " + Float.toString(rotation_vector[1]) + " " + Float.toString(rotation_vector[2]) + " " + Float.toString(rotation_vector[3]) + " ";
