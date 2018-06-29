@@ -586,6 +586,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private final int TOUCH_MODE_PRESS = TOUCH_MODE_EXPLORE + 1;
     private final int TOUCH_MODE_SWIPE = TOUCH_MODE_PRESS + 1;
     private final int TOUCH_MODE_SPIN = TOUCH_MODE_SWIPE + 1;
+    private final int TOUCH_MODE_LONG = TOUCH_MODE_SPIN + 1;
 
     private int touch_mode = TOUCH_MODE_CHECK;
     private int checked = 0;
@@ -721,14 +722,18 @@ public class MainActivity extends Activity implements SensorEventListener {
                             touch_mode = TOUCH_MODE_SPIN;
                         }
                         else {
-                            if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
-                            else {
+                            if (checkSwipe()) {
                                 touch_mode = TOUCH_MODE_EXPLORE;
                                 Log.d("hwjj", "explore");
                                 writeLog(logFile, "explore");
                                 st.exploreSum++;
-                                sceneHandler.handleOP(sceneHandler.OP_LONG_PRESS, x, y);
+                                sceneHandler.handleOP(sceneHandler.OP_EXPLORE, x, y);
                                 mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                            }
+                            else {
+                                touch_mode = TOUCH_MODE_LONG;
+                                Log.d("hwjj", "long");
+                                sceneHandler.handleOP(sceneHandler.OP_LONG_PRESS, x, y);
                             }
                             checked = 0;
                         }
