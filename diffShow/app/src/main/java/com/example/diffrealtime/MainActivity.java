@@ -328,7 +328,6 @@ public class MainActivity extends Activity implements SensorEventListener {
     private final int SMALL_SPIN_INTERVAL = 10;
     private int firstSpinInterval = BIG_SPIN_INTERVAL;
     private final int CONTINUOUS_SPIN_TIME = 2000;
-    private final int QUIT_EAR_MODE_VALUE = 8;
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -728,12 +727,12 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 writeLog(logFile, "explore");
                                 st.exploreSum++;
                                 sceneHandler.handleOP(sceneHandler.OP_EXPLORE, x, y);
-                                mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                             }
                             else {
                                 touch_mode = TOUCH_MODE_LONG;
                                 Log.d("hwjj", "long");
                                 sceneHandler.handleOP(sceneHandler.OP_LONG_PRESS, x, y);
+                                //mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                             }
                             checked = 0;
                         }
