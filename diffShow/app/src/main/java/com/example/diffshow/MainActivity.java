@@ -79,9 +79,9 @@ public class MainActivity extends Activity implements SensorEventListener {
     //        "swipe1", "swipe2", "swipe3", "swipe4", "swipe5", "swipe6", "swipe7", "swipe8", "one-spin1", "one-spin2", "layout0", "layout1", "layout2", "layout3", "layout4", "layout5", "layout6", "layout7", "layout8", "layout9", "layout10", "layout11", "layout12", "layout13", "layout14", "layout15", "layout16", "layout17", "free"};
     //private int taskSum = 32;
 
-    private String[] tasknames = {"前滑动", "后滑动", "上滑动", "下滑动", "单击", "双击", "旋转20", "旋转30", "脸", "手指"};
-    private String[] filenames = {"swipe1", "swipe2", "swipe3", "swipe4", "click", "double", "spin10", "spin30", "face", "finger"};
-    private int taskSum = 10;
+    private String[] tasknames = {"耳朵按压", "耳朵移动", "单指", "双指", "三指", "前滑动", "后滑动", "上滑动", "下滑动", "单击", "双击", "长按", "前旋转", "后旋转", "旋转15", "旋转20", "旋转25", "旋转30"};
+    private String[] filenames = {"ear-press", "ear-move", "finger-one", "finger-two", "finger-three", "swipe-forward", "swipe-backward", "swipe-up", "swipe-down", "click", "double", "long", "forward-spin", "backward-spin", "spin15", "spin20", "spin25", "spin30"};
+    private int taskSum = 18;
     private float[] gravity = {0,0,0};
     private float[] linear_acceleration = {0,0,0};
     private float[] rotation_vector = {0,0,0,0};
