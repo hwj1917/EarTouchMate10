@@ -724,7 +724,6 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 Log.d("hwjj", "explore");
                                 if (CHECK_SUM != 1) {
                                     mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
-                                    mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                                 }
                             }
                             else
@@ -732,6 +731,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 Log.d("hwjj", "long");
                                 mTTS.speak("长按", TextToSpeech.QUEUE_FLUSH, null, "out");
                                 touch_mode = TOUCH_MODE_LONG;
+                                mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                             }
                             checked = 0;
                         }
