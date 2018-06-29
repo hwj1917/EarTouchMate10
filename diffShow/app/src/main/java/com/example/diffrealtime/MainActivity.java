@@ -325,7 +325,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private long lastSpinEndTime = 0;
     private final int BIG_SPIN_INTERVAL = 30;
-    private final int SMALL_SPIN_INTERVAL = 15;
+    private final int SMALL_SPIN_INTERVAL = 10;
     private int firstSpinInterval = BIG_SPIN_INTERVAL;
     private final int CONTINUOUS_SPIN_TIME = 2000;
     private final int QUIT_EAR_MODE_VALUE = 8;
@@ -348,9 +348,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             if (Math.abs(az) > 8 && earModeFlag)
             {
-                mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
-                earModeFlag = false;
-                quitEarMode();
+                //mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
+                //earModeFlag = false;
+                //quitEarMode();
             }
 
             double g = Math.sqrt(ax * ax + ay * ay);

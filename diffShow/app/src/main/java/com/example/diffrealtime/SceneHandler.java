@@ -138,12 +138,12 @@ public class SceneHandler {
         switch (type) {
             case OP_ANTICLKWISE:
                 if (++callOutNumber > CALLOUT_MAX_NUMBER)
-                    callOutNumber = CALLOUT_MAX_NUMBER;
+                    callOutNumber = CALLOUT_MIN_NUMBER;
                 mTTS.speak("" + callOutNumber, TextToSpeech.QUEUE_FLUSH, null, "out");
                 break;
             case OP_CLKWISE:
                 if (--callOutNumber < CALLOUT_MIN_NUMBER)
-                    callOutNumber = CALLOUT_MIN_NUMBER;
+                    callOutNumber = CALLOUT_MAX_NUMBER;
                 mTTS.speak("" + callOutNumber, TextToSpeech.QUEUE_FLUSH, null, "out");
                 break;
             case OP_LEAVE:
@@ -250,7 +250,7 @@ public class SceneHandler {
             case OP_LEAVE:
                 if (mapLongPressFlag)
                 {
-                    mTTS.speak("已搜索", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    mTTS.speak("已搜索。左右滑动以选择目的地", TextToSpeech.QUEUE_FLUSH, null, "out");
                     mapSpinFlag = false;
                     mapLongPressFlag = false;
                     mapSearchFlag = true;
@@ -286,7 +286,7 @@ public class SceneHandler {
             case OP_DOUBLE_CLICK:
                 if (mapSearchFlag)
                 {
-                    mTTS.speak("已选择" + mapDest[mapDestNum], TextToSpeech.QUEUE_FLUSH, null, "out");
+                    mTTS.speak("已选择。左右滑动以选择出行方式" + mapDest[mapDestNum], TextToSpeech.QUEUE_FLUSH, null, "out");
                     mapSearchFlag = false;
                     mapConfirmFlag = true;
                 }
