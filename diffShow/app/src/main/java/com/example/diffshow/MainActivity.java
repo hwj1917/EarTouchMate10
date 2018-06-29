@@ -199,9 +199,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private boolean spinFlag = false;
 
     private int BIG_SPIN_INTERVAL = 30;
-    private int SMALL_SPIN_INTERVAL = 20;
+    private int SMALL_SPIN_INTERVAL = 15;
     private int firstSpinInterval = BIG_SPIN_INTERVAL;
-
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -373,9 +372,13 @@ public class MainActivity extends Activity implements SensorEventListener {
                         }
                         else CHECK_SUM = 50;
 
-                        if (tmp.equals("hov") || tmp.equals("lay") || tmp.equals("mov"))
+                        if (!tmp.equals("ear") && !tmp.equals("fin"))
                         {
                             feedbackFlag = true;
+                            checkSpinFlag = true;
+                            SMALL_SPIN_INTERVAL = 15;
+                            BIG_SPIN_INTERVAL = 30;
+                            firstSpinInterval = BIG_SPIN_INTERVAL;
                         }
                         else feedbackFlag = false;
 
@@ -601,6 +604,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int checked = 0;
     private int first_checked_x, first_checked_y, last_checked_x, last_checked_y;
 
+    private final int MIN_CHECKED = 2;
+    private final int CHECK_TIME = 1000;
+    private long check_start = 0;
+
     private boolean checkSwipe()
     {
         int dx = last_checked_x - first_checked_x, dy = last_checked_y - first_checked_y;
@@ -671,7 +678,10 @@ public class MainActivity extends Activity implements SensorEventListener {
                     checked++;
                     last_checked_x = x;
                     last_checked_y = y;
-
+                    long now = System.currentTimeMillis();
+                    if (checked == 1) {
+                        check_start = now;
+                    }
                     /*
                     if (x == -1 && y == -1)
                     {
@@ -701,14 +711,23 @@ public class MainActivity extends Activity implements SensorEventListener {
                         }
                         checked = 0;
                     }*/
-                    if (checked == CHECK_SUM) {
-                        touch_mode = TOUCH_MODE_EXPLORE;
-                        Log.d("hwjj", "explore");
-                        if (CHECK_SUM != 1) {
-                            mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
-                            mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                    if (checked > 0 && now - check_start > CHECK_TIME) {
+                        if (spinFlag)
+                        {
+                            touch_mode = TOUCH_MODE_SPIN;
                         }
-                        checked = 0;
+                        else {
+                            if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
+                            else {
+                                touch_mode = TOUCH_MODE_EXPLORE;
+                                Log.d("hwjj", "explore");
+                                if (CHECK_SUM != 1) {
+                                    mTTS.speak("触摸浏览", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                    mVibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
+                                }
+                            }
+                            checked = 0;
+                        }
                     }
                     break;
                 case TOUCH_MODE_PRESS:
@@ -760,21 +779,28 @@ public class MainActivity extends Activity implements SensorEventListener {
             switch (touch_mode)
             {
                 case TOUCH_MODE_CHECK:
-                    if (checked > 3) {
-                        //if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
-                        //else {
-                            touch_mode = TOUCH_MODE_CLICK;
-                            if (y > 0 && y < 70)
-                            {
-                                Log.d("hwjj", "click 1");
-                                mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    if (checked > MIN_CHECKED) {
+                        if (spinFlag)
+                        {
+                            touch_mode = TOUCH_MODE_SPIN;
+                        }
+                        else {
+                            if (checkSwipe()) touch_mode = TOUCH_MODE_SWIPE;
+                            else {
+                                touch_mode = TOUCH_MODE_CLICK;
+                                if (++clickState == 1)
+                                    new ClickThread().start();
+                                /*
+                                if (y > 0 && y < 70) {
+                                    Log.d("hwjj", "click 1");
+                                    mTTS.speak("单击1", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                } else {
+                                    Log.d("hwjj", "click 2");
+                                    mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
+                                }
+                                */
                             }
-                            else
-                            {
-                                Log.d("hwjj", "click 2");
-                                mTTS.speak("单击2", TextToSpeech.QUEUE_FLUSH, null, "out");
-                            }
-                        //}
+                        }
                     }
                     break;
             }
@@ -811,9 +837,9 @@ public class MainActivity extends Activity implements SensorEventListener {
             if (t - lastNotifyTime > 1000) {
                 lastNotifyTime = t;
                 if (++taskTimes <= maxTimes && !filenames[taskIndex].equals("sensor") && !filenames[taskIndex].substring(0, 3).equals("lay") && !filenames[taskIndex].equals("double") && !filenames[taskIndex].substring(0, 3).equals("spi")) {
-                    if (taskTimes == 1) mTTS.speak("尝试结束", TextToSpeech.QUEUE_FLUSH, null, "out");
+                    if (taskTimes == 1) mTTS.speak("尝试结束", TextToSpeech.QUEUE_ADD, null, "out");
                     else
-                        mTTS.speak(Integer.toString(taskTimes - 1), TextToSpeech.QUEUE_FLUSH, null, "out");
+                        mTTS.speak(Integer.toString(taskTimes - 1), TextToSpeech.QUEUE_ADD, null, "out");
                 }
                 if (filenames[taskIndex].substring(0, 3).equals("lay"))
                 {
@@ -866,6 +892,32 @@ public class MainActivity extends Activity implements SensorEventListener {
     {
         running = !running;
 
+    }
+
+    private int clickState = 0;
+    private final int CLICK_TIME = 300;
+    class ClickThread extends Thread
+    {
+        @Override
+        public void run()
+        {
+            try {
+                sleep(CLICK_TIME);
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+            if (clickState > 1) {
+                Log.d("hwjj", "double click");
+                mTTS.speak("双击", TextToSpeech.QUEUE_ADD, null, "out");
+            }
+            else {
+                Log.d("hwjj", "click");
+                mTTS.speak("单击", TextToSpeech.QUEUE_ADD, null, "out");
+            }
+            clickState = 0;
+        }
     }
 
     /**
