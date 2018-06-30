@@ -113,7 +113,7 @@ double press_dist;
 
 Rect ear, others;
 bool earModeFlag = false;
-const int EAR_CHECK_SUM = 5;
+const int EAR_CHECK_SUM = 4;
 int earCheck = EAR_CHECK_SUM;
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -732,45 +732,62 @@ bool extractEar(vector<Rect>& rects)
     }
 }
 
-bool preProcess(Mat& pre, JNIEnv* env)
+void handleContours(Mat& frame, Rect& rectsum, vector<Rect>& rects, vector<Point>& points)
 {
-    vector<vector<Point> > contours;
+    vector<vector<Point>> contours;
     vector<Vec4i> hierarchy;
-    findContours(pre, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    findContours(frame, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
-    Rect rectsum;
-    vector<Rect> rects;
-    vector<Point> points;
-    for (int i = 0; i < contours.size(); i++) {
-        if (contours[i].size())
+    for (int j = 0; j < contours.size(); j++) {
+        if (contours[j].size())
         {
-            Rect recti = boundingRect(contours.at(i));
+            Rect recti = boundingRect(contours.at(j));
 
             if (recti.width * recti.height > 100) {
-                Rect recti = boundingRect(contours.at(i));
+                Rect recti = boundingRect(contours.at(j));
+                rectangle(frame, recti, Scalar(255, 0, 0));
                 rectsum = rectsum | recti;
                 rects.push_back(recti);
-                points.insert(points.end(), contours[i].begin(), contours[i].end());
+                points.insert(points.end(), contours[j].begin(), contours[j].end());
             }
         }
     }
+}
+
+bool preProcess(Mat& pre, JNIEnv* env)
+{
+    Rect rectsum;
+    vector<Rect> rects;
+    vector<Point> points;
+
+    handleContours(pre, rectsum, rects, points);
 
     if (!points.empty())
     {
+        RotatedRect minRect;
+        if (rects.size() > 1)
+        {
+            if (extractEar(rects))
+                minRect = minAreaRect(points);
+            else {
+                rectsum = ear;
+                Mat toSet = Mat::zeros(pre.size(), CV_8U);
+                Mat region = toSet(rectsum);
+                pre(rectsum).copyTo(region);
+                Rect rectsum;
+                vector<Rect> rects;
+                vector<Point> points;
 
-        RotatedRect minRect = minAreaRect(points);
+                handleContours(toSet, rectsum, rects, points);
+
+                minRect = minAreaRect(points);
+            }
+        }
+        else minRect = minAreaRect(points);
         float ratio = (float)minRect.size.width / minRect.size.height;
 
-        if (minRect.size.width * minRect.size.height > 2000 && (ratio > 2.6 || ratio < 1 / 2.6))
-        {
-            bool earFlag = true;
-            if (rects.size() > 1)
-            {
-                earFlag = extractEar(rects);
-                rectsum = ear;
-            }
-            return earFlag;
-        }
+        if (minRect.size.width * minRect.size.height > 2000 && (ratio > 1.7 || ratio < 1 / 1.7))
+            return true;
         else return false;
     }
     else return false;

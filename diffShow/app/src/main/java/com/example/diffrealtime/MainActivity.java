@@ -345,11 +345,11 @@ public class MainActivity extends Activity implements SensorEventListener {
             float az = values[2];
             Log.d("spin", "" + values[0] + " " + values[1] + " " + values[2]);
 
-            if (Math.abs(az) > 8 && earModeFlag)
+            if (Math.abs(az) > 20 && earModeFlag)
             {
-                //mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
-                //earModeFlag = false;
-                //quitEarMode();
+                mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
+                earModeFlag = false;
+                quitEarMode();
             }
 
             double g = Math.sqrt(ax * ax + ay * ay);
