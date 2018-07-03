@@ -6,6 +6,7 @@ import android.content.Context;
 import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
 import android.media.MediaPlayer;
+import android.os.BatteryManager;
 import android.os.Handler;
 import android.os.Message;
 //import android.support.v7.app.AppCompatActivity;
@@ -34,6 +35,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -79,6 +81,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private EditText mEditText;
     private Vibrator mVibrator;
     private TextToSpeech mTTS;
+    private Calendar calendar;
+    private BatteryManager batteryManager;
     private int taskIndex = 0;
     private int taskTimes = 0;
     private final int maxTimes = 5;
@@ -254,12 +258,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         iniateSensors();
         times_save = 0;
 
-        /*
-        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-        audioManager.setSpeakerphoneOn(false);
-        mediaPlayer = MediaPlayer.create(this, R.raw.audio);
-                */
         isrecording = false;
 
         LinearLayout ll = findViewById(R.id.linearLayout);
@@ -278,21 +276,10 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         });
 
-        sceneHandler = new SceneHandler(mTTS);
+        batteryManager = (BatteryManager)getSystemService(BATTERY_SERVICE);
+        calendar = Calendar.getInstance();
+        sceneHandler = new SceneHandler(mTTS, calendar, batteryManager);
 
-        /*
-        capacityView = findViewById(R.id.capacityView);
-        Point size = new Point();
-        getWindowManager().getDefaultDisplay().getRealSize(size);
-        screenWidth = size.x;
-        screenHeight = size.y;
-        capacityView.screenHeight = screenHeight;
-        capacityView.screenWidth = screenWidth;
-        capacityView.diffData = diffData;
-        capacityView.task_name = taskperGesture[times_save%taskperGesture.length];
-        capacityView.gesture_name = gesturenames[times_save/taskperGesture.length];
-        capacityView.task_index = Integer.toString(times_save);
-        */
         readDiffStart();
         //new ConnectThread().start();
     }
@@ -899,6 +886,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         @Override
         public void run()
         {
+            int x = last_checked_x;
+            int y = last_checked_y;
             try {
                 sleep(CLICK_TIME);
             }
@@ -912,8 +901,8 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
             else {
                 Log.d("hwjj", "click");
-                sceneHandler.handleOP(sceneHandler.OP_CLICK, -1, -1);
-                sceneHandler.handleOP(sceneHandler.OP_LEAVE, -1, -1);
+                sceneHandler.handleOP(sceneHandler.OP_CLICK, x, y);
+                sceneHandler.handleOP(sceneHandler.OP_LEAVE, x, y);
             }
             clickState = 0;
         }

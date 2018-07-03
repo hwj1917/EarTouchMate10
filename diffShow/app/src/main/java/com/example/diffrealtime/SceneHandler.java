@@ -1,8 +1,10 @@
 package com.example.diffrealtime;
 
 import android.bluetooth.le.ScanRecord;
+import android.os.BatteryManager;
 import android.speech.tts.TextToSpeech;
 
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
@@ -25,15 +27,22 @@ public class SceneHandler {
     public final int OP_FIRST_TOUCH = OP_LONG_PRESS + 1;
     public final int OP_LEAVE = OP_FIRST_TOUCH + 1;
 
-    private String[] sceneNames = {"电话呼入", "电话呼出", "微信语音", "地图导航", "主屏幕"};
-    private final int SCENE_SUM = 5;
+    private final int SCENE_WIDTH = 1440;
+    private final int SCENE_HEIGHT = 2560;
+
+    private String[] sceneNames = {"电话呼入", "电话呼出", "微信语音", "地图导航", "主屏幕", "锁屏界面"};
+    private final int SCENE_SUM = 6;
     private int sceneIndex = 0;
 
     private TextToSpeech mTTS;
+    private Calendar calendar;
+    private BatteryManager batteryManager;
 
-    SceneHandler(TextToSpeech tts)
+    SceneHandler(TextToSpeech tts, Calendar c, BatteryManager b)
     {
         mTTS = tts;
+        calendar = c;
+        batteryManager = b;
     }
 
     public void nextScene()
@@ -73,6 +82,10 @@ public class SceneHandler {
                 break;
             case "主屏幕":
                 handleOPForMain(type, x, y);
+                break;
+            case "锁屏界面":
+                handleOPForLock(type, x, y);
+                break;
             default:
                 break;
         }
@@ -85,6 +98,7 @@ public class SceneHandler {
         clearForWeChat();
         clearForMap();
         clearForMain();
+        clearForLock();
     }
 
     private boolean callInFlag = true;
@@ -322,12 +336,10 @@ public class SceneHandler {
         mapVehicleNum = 0;
     }
 
-    private final int MAIN_WIDTH = 1440;
-    private final int MAIN_HEIGHT = 2560;
     private final int MAIN_X_SUM = 2;
     private final int MAIN_Y_SUM = 3;
-    private final int MAIN_X_INTERVAL = MAIN_WIDTH / MAIN_X_SUM;
-    private final int MAIN_Y_INTERVAL = MAIN_HEIGHT / MAIN_Y_SUM;
+    private final int MAIN_X_INTERVAL = SCENE_WIDTH / MAIN_X_SUM;
+    private final int MAIN_Y_INTERVAL = SCENE_HEIGHT / MAIN_Y_SUM;
     private int mainLastIndexX = -1;
     private int mainLastIndexY = -1;
     private String[] mainAppNames = {"微信", "地图", "支付宝", "qq", "滴滴打车", "微博"};
@@ -370,5 +382,29 @@ public class SceneHandler {
     {
         mainLastIndexX = -1;
         mainLastIndexY = -1;
+    }
+
+    private boolean lockFlag = false;
+
+    private void handleOPForLock(int type, int x, int y)
+    {
+        if (lockFlag) return;
+        switch (type)
+        {
+            case OP_CLICK:
+                if (y < SCENE_HEIGHT / 2)
+                    mTTS.speak("现在是" + calendar.get(Calendar.HOUR_OF_DAY) + "点" + calendar.get(Calendar.HOUR_OF_DAY) + "分", TextToSpeech.QUEUE_FLUSH, null, "out");
+                else mTTS.speak("剩余电量百分之" + batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY), TextToSpeech.QUEUE_FLUSH, null, "out");
+                break;
+            case OP_DOUBLE_CLICK:
+                mTTS.speak("打开支付宝二维码", TextToSpeech.QUEUE_FLUSH, null, "out");
+                lockFlag = true;
+                break;
+        }
+    }
+
+    private void clearForLock()
+    {
+        lockFlag = false;
     }
 }
