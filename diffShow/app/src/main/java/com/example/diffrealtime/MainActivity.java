@@ -774,7 +774,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                     }
                     break;
                 case TOUCH_MODE_SWIPE:
-
+                    break;
+                case TOUCH_MODE_LONG:
+                    sceneHandler.handleOP(sceneHandler.OP_LONG_PRESS, x, y);
                     break;
             }
 
