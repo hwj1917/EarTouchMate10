@@ -44,6 +44,12 @@ public class SceneHandler {
         mTTS.speak(sceneNames[sceneIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
     }
 
+    public void reloadScene()
+    {
+        clearScene();
+        mTTS.speak("重做" + sceneNames[sceneIndex], TextToSpeech.QUEUE_FLUSH, null, "out");
+    }
+
     public String getCurrentScene()
     {
         return sceneNames[sceneIndex];

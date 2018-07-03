@@ -444,6 +444,9 @@ public class MainActivity extends Activity implements SensorEventListener {
             case KeyEvent.KEYCODE_VOLUME_UP:
                 sceneHandler.nextScene();
                 return true;
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+                sceneHandler.reloadScene();
+                return true;
             default:
                 break;
         }
