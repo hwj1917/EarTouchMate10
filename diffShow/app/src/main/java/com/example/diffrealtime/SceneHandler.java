@@ -345,6 +345,24 @@ public class SceneHandler {
                     mainLastIndexY = yy;
                 }
                 break;
+            case OP_SWIPE_LEFT:
+                if (--mainLastIndexX < 0)
+                {
+                    mainLastIndexX = MAIN_X_SUM - 1;
+                    if (--mainLastIndexY < 0)
+                        mainLastIndexY = MAIN_Y_SUM - 1;
+                }
+                mTTS.speak(mainAppNames[mainLastIndexY * MAIN_X_SUM + mainLastIndexX], TextToSpeech.QUEUE_FLUSH, null, "out");
+                break;
+            case OP_SWIPE_RIGHT:
+                if (++mainLastIndexX == MAIN_X_SUM)
+                {
+                    mainLastIndexX = 0;
+                    if (++mainLastIndexY == MAIN_Y_SUM)
+                        mainLastIndexY = 0;
+                }
+                mTTS.speak(mainAppNames[mainLastIndexY * MAIN_X_SUM + mainLastIndexX], TextToSpeech.QUEUE_FLUSH, null, "out");
+                break;
         }
     }
 
