@@ -179,23 +179,25 @@ public class SceneHandler {
 
     private boolean weChatLongPressFlag = false;
     private boolean weChatCancelFlag = false;
+    private int weChatLastOp = -1;
     private int weChatFirstY;
-    private final int WECHAT_CANCEL_DIST= 300;
+    private final int WECHAT_CANCEL_DIST = 300;
 
     private void handleOPForWeChat(int type, int x, int y)
     {
         switch (type)
         {
             case OP_EXPLORE:
+                break;
+            case OP_LONG_PRESS:
+                weChatLongPressFlag = true;
+                if (weChatLastOp != OP_LONG_PRESS)
+                    weChatFirstY = y;
                 if (!weChatCancelFlag && weChatFirstY - y > WECHAT_CANCEL_DIST)
                 {
                     mTTS.speak("已撤销", TextToSpeech.QUEUE_FLUSH, null, "out");
                     weChatCancelFlag  = true;
                 }
-                break;
-            case OP_LONG_PRESS:
-                weChatLongPressFlag = true;
-                weChatFirstY = y;
                 break;
             case OP_LEAVE:
                 if (weChatLongPressFlag)
@@ -207,12 +209,14 @@ public class SceneHandler {
                 }
                 break;
         }
+        weChatLastOp = type;
     }
 
     private void clearForWeChat()
     {
         weChatLongPressFlag = false;
         weChatCancelFlag = false;
+        weChatLastOp = -1;
     }
 
     private boolean mapFlag = false;
