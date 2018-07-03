@@ -782,6 +782,9 @@ public class MainActivity extends Activity implements SensorEventListener {
         else {
             switch (touch_mode)
             {
+                case TOUCH_MODE_LONG:
+                    sceneHandler.handleOP(sceneHandler.OP_LEAVE, -1, -1);
+                    break;
                 case TOUCH_MODE_SPIN:
                     lastSpinEndTime = System.currentTimeMillis();
                     sceneHandler.handleOP(sceneHandler.OP_LEAVE, -1, -1);
