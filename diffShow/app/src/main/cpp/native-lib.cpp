@@ -695,7 +695,7 @@ bool extractEar(vector<Rect>& rects)
 {
     vector<vector<Rect>> clusters = kMeans(2, rects);
 
-    if (dist(centers[0], centers[1]) < 50 * 50)
+    if (dist(centers[0], centers[1]) < 2000)
     {
         Rect _ear;
         for (int i = 0; i < clusters[0].size(); i++)
@@ -707,7 +707,7 @@ bool extractEar(vector<Rect>& rects)
     }
     else
     {
-        int miny0 = -1, miny1 = -1;
+        int miny0 = 1e5, miny1 = 1e5;
         for (int i = 0; i < clusters[0].size(); i++)
             if (clusters[0][i].y < miny0)
                 miny0 = clusters[0][i].y;
@@ -745,7 +745,6 @@ void handleContours(Mat& frame, Rect& rectsum, vector<Rect>& rects, vector<Point
 
             if (recti.width * recti.height > 100) {
                 Rect recti = boundingRect(contours.at(j));
-                rectangle(frame, recti, Scalar(255, 0, 0));
                 rectsum = rectsum | recti;
                 rects.push_back(recti);
                 points.insert(points.end(), contours[j].begin(), contours[j].end());
@@ -774,19 +773,19 @@ bool preProcess(Mat& pre, JNIEnv* env)
                 Mat toSet = Mat::zeros(pre.size(), CV_8U);
                 Mat region = toSet(rectsum);
                 pre(rectsum).copyTo(region);
-                Rect rectsum;
-                vector<Rect> rects;
-                vector<Point> points;
+                Rect _r;
+                vector<Rect> _rs;
+                vector<Point> _ps;
 
-                handleContours(toSet, rectsum, rects, points);
+                handleContours(toSet, _r, _rs, _ps);
 
-                minRect = minAreaRect(points);
+                minRect = minAreaRect(_ps);
             }
         }
         else minRect = minAreaRect(points);
         float ratio = (float)minRect.size.width / minRect.size.height;
 
-        if (minRect.size.width * minRect.size.height > 2000 && (ratio > 1.7 || ratio < 1 / 1.7))
+        if (minRect.size.width * minRect.size.height > 1000 && (ratio > 1.7 || ratio < 1 / 1.7))
             return true;
         else return false;
     }
