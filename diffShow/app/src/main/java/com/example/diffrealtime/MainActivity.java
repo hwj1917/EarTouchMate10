@@ -315,6 +315,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private final int SMALL_SPIN_INTERVAL = 10;
     private int firstSpinInterval = BIG_SPIN_INTERVAL;
     private final int CONTINUOUS_SPIN_TIME = 2000;
+    private final int QUIT_SENSOR_THRESHOULD = 10;
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -332,7 +333,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             float az = values[2];
             Log.d("spin", "" + values[0] + " " + values[1] + " " + values[2]);
 
-            if (Math.abs(az) > 20 && earModeFlag)
+            if (Math.abs(az) > QUIT_SENSOR_THRESHOULD && earModeFlag)
             {
                 mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
                 earModeFlag = false;
