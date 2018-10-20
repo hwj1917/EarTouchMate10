@@ -812,19 +812,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         threshold(lanc, pre, 70, 0, THRESH_TOZERO);        //gray
         pre.convertTo(pre, CV_8U);
 
-        env->CallVoidMethod(obj, callBack_method, -100000, sum, true);
         if (!earModeFlag) {
-            if (sum > EAR_DIRTY_SUM && preProcess(pre, env))
-            {
-                if (--earCheck == 0) {
-                    earModeFlag = true;
-                    env->CallVoidMethod(obj, callBack_method, -10000000, 1, true);
-                }
-            }
-            else
-            {
-                earCheck = EAR_CHECK_SUM;
-            }
+            return;
         }
     }
     else earCheck = EAR_CHECK_SUM;
@@ -893,7 +882,6 @@ void calcPoint(Frame &frame, JNIEnv* env) {
             }
             else
             {
-                env->CallVoidMethod(obj, callBack_method, -100000, 1, true);
                 return;
             }
             //Mat m = subMat(input, Rect(pressRegionRect.x / 5 - 2, pressRegionRect.y / 5 - 2, 10, 12));
@@ -1033,44 +1021,10 @@ void calcPoint(Frame &frame, JNIEnv* env) {
 
             last_result = ptmp;
         }
-        /*
-        /////////////////////////////////////check press//////////////////////////////////////////////
-
-        sum = matSum<uchar>(binaryImage);
-        if (pressFlag == 0 && !spinFlag && lastsum < touchSum + PRESS_THRESHOLD && sum >= touchSum + PRESS_THRESHOLD && !checkSwipe(MAX_PRESS_DIST)) {
-            env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, true);
-            env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
-            pressFlag = 80;
-        }
-        else if (pressFlag > 0 && !spinFlag) {
-            env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, true);
-            if (sum < touchSum + PRESS_THRESHOLD && !checkSwipe(MAX_PRESS_DIST)) {
-                env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
-                pressFlag = 0;
-                env->CallVoidMethod(obj, callBack_method, -1, -1, true);
-                checked = CHECK_SUM;
-                last_dirty = isDirty;
-                return;
-            }
-            else
-            {
-                env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
-                if (--pressFlag == 0)
-                    pressFlag = -1;
-            }
-        }
-        else
-        {
-            env->CallVoidMethod(obj, callBack_method, -1000, sum - touchSum, false);
-            env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
-        }
-        //////////////////////////////////////////////////////////////////////////////////////////////
-        */
         sendPoint(env, false, result);
     }
     else                                               //触摸结束
     {
-        env->CallVoidMethod(obj, callBack_method, -100000, sum, true);
         spinFlag = false;
         swipeFlag = false;
 
@@ -1079,17 +1033,11 @@ void calcPoint(Frame &frame, JNIEnv* env) {
             //////////////////////////////check press////////////////////////////////////
             if (pressFlag > 0) {
                 if (!checkSwipe(MAX_PRESS_DIST)) {
-                    env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
                     env->CallVoidMethod(obj, callBack_method, -1, -1, true);
-                }
-                else
-                {
-                    env->CallVoidMethod(obj, callBack_method, -10000, (int)press_dist, true);
                 }
             }
             //////////////////////////////////////////////////////////////////
             sendPoint(env, true);
-            //sendTCP(false);
         }
         pressFlag = 0;
         last_angle = -1, total_angle = 0, clkwise = 0, anticlkwise = 0;
@@ -1128,6 +1076,7 @@ void* handleFrame(void* args)
 #ifdef FROMDEV
     int lastID = -1;
     while (true) {
+
         pthread_mutex_lock(&frames_mutex);
         if (frames.empty()) {
             pthread_mutex_unlock(&frames_mutex);
@@ -1177,17 +1126,7 @@ void* handleFrame(void* args)
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_diffrealtime_MainActivity_readDiffStart(JNIEnv *env, jobject instance) {
-
-
-/*
-    jclass cla = (env)->FindClass("com/example/diffshow/MainActivity");
-    if(cla == 0){
-        __android_log_print(ANDROID_LOG_DEBUG,TAG,"find class error");
-        return ;
-    }
-    LOGD("Find Class...");
-*/
+Java_com_example_diffrealtime_EarTouchService_readDiffStart(JNIEnv *env, jobject instance) {
 
     pthread_mutex_init(&frames_mutex, NULL);
     env->GetJavaVM(&g_jvm); // 保存java虚拟机对象
@@ -1198,8 +1137,6 @@ Java_com_example_diffrealtime_MainActivity_readDiffStart(JNIEnv *env, jobject in
 #ifdef RECORD
     callBack_method = env->GetMethodID(env->GetObjectClass(instance),"record","([SZ)V");
 #endif
-
-    notify_method = env->GetMethodID(env->GetObjectClass(instance),"notifiedEnd","()V");
 
     if(callBack_method == 0){
         __android_log_print(ANDROID_LOG_DEBUG,TAG,"find callBack_method error");
@@ -1223,7 +1160,7 @@ Java_com_example_diffrealtime_MainActivity_readDiffStart(JNIEnv *env, jobject in
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_diffrealtime_MainActivity_readDiffStop(JNIEnv *env, jobject instance) {
+Java_com_example_diffrealtime_EarTouchService_readDiffStop(JNIEnv *env, jobject instance) {
 
     // TODO
     if(pipefd[1] < 0)
@@ -1261,7 +1198,7 @@ string jstring2str(JNIEnv* env, jstring jstr)
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_diffrealtime_MainActivity_readFile(JNIEnv *env, jobject instance, jstring fn) {
+Java_com_example_diffrealtime_EarTouchService_readFile(JNIEnv *env, jobject instance, jstring fn) {
     filename = string("/sdcard/eartouch/") + jstring2str(env, fn);
     LOGD("shit");
     obj = env->NewGlobalRef(instance);
@@ -1270,6 +1207,12 @@ Java_com_example_diffrealtime_MainActivity_readFile(JNIEnv *env, jobject instanc
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_diffrealtime_MainActivity_quitEarMode(JNIEnv *env, jobject instance) {
+Java_com_example_diffrealtime_EarTouchService_quitEarMode(JNIEnv *env, jobject instance) {
     earModeFlag = false;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_diffrealtime_EarTouchService_enterEarMode(JNIEnv *env, jobject instance) {
+    earModeFlag = true;
 }
