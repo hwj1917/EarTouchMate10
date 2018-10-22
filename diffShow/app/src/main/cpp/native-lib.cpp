@@ -813,6 +813,9 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         pre.convertTo(pre, CV_8U);
 
         if (!earModeFlag) {
+            checked = 0;
+            points_buffer.clear();
+            last_dirty = false;
             return;
         }
     }
@@ -829,23 +832,8 @@ void calcPoint(Frame &frame, JNIEnv* env) {
         Point result;
         binaryImage = pre;
 
-
-        /*
-        //check spin. here we go
-        if (!swipeFlag) swipeFlag = checkSwipe(MAX_SWIPE_DIST);
-        if ((!swipeFlag && checked < CHECK_SUM) || spinFlag) {
-            checkSpin(env, sum, binaryImage);
-            if (spinFlag) {
-                last_dirty = isDirty;
-                lastsum = sum;
-                return;
-            }
-        }
-        //here we stop
-        */
         if (!last_dirty)                                         //触摸开始
         {
-            //sendTCP(true);
             touchSum = matSum<uchar>(binaryImage);
 
             frame_count = 0;
@@ -884,8 +872,6 @@ void calcPoint(Frame &frame, JNIEnv* env) {
             {
                 return;
             }
-            //Mat m = subMat(input, Rect(pressRegionRect.x / 5 - 2, pressRegionRect.y / 5 - 2, 10, 12));
-            //lastPatternSum = pressRegionTouchSum = matSum<float>(m);
 
         }
         else                                            //触摸中
@@ -1025,22 +1011,10 @@ void calcPoint(Frame &frame, JNIEnv* env) {
     }
     else                                               //触摸结束
     {
-        spinFlag = false;
-        swipeFlag = false;
-
         if (last_dirty)
         {
-            //////////////////////////////check press////////////////////////////////////
-            if (pressFlag > 0) {
-                if (!checkSwipe(MAX_PRESS_DIST)) {
-                    env->CallVoidMethod(obj, callBack_method, -1, -1, true);
-                }
-            }
-            //////////////////////////////////////////////////////////////////
             sendPoint(env, true);
         }
-        pressFlag = 0;
-        last_angle = -1, total_angle = 0, clkwise = 0, anticlkwise = 0;
     }
 
     last_dirty = isDirty;
@@ -1208,11 +1182,13 @@ Java_com_example_diffrealtime_EarTouchService_readFile(JNIEnv *env, jobject inst
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_diffrealtime_EarTouchService_quitEarMode(JNIEnv *env, jobject instance) {
+    LOGD("exit");
     earModeFlag = false;
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_diffrealtime_EarTouchService_enterEarMode(JNIEnv *env, jobject instance) {
+    LOGD("enter");
     earModeFlag = true;
 }
