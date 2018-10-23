@@ -7,8 +7,12 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
+
+import java.util.Locale;
 
 public class EarTouchService extends AccessibilityService implements SensorEventListener {
 
@@ -18,6 +22,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
 
     private SensorManager sensorManager;
     private EarTouchServer server;
+    private TextToSpeech mTTS;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId)
@@ -27,14 +32,20 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
 
     @Override
     protected void onServiceConnected() {
+        mTTS = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                mTTS.setLanguage(Locale.CHINA);
+            }
+        });
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         sensorManager.registerListener(this,
                 sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
                 SensorManager.SENSOR_DELAY_NORMAL);
         server = new EarTouchServer();
         server.start();
+        earModeFlag = false;
         readDiffStart();
-        enterEarMode();
     }
 
     @Override
@@ -43,11 +54,21 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
 
     @Override
     public void onInterrupt() {
-        Log.d("hwjj", "stop");
         readDiffStop();
     }
 
-
+    @Override
+    public boolean onKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_DOWN && !earModeFlag)
+        {
+            Log.d("hwjj", "enter");
+            mTTS.speak("进入耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
+            earModeFlag = true;
+            enterEarMode();
+            addEvent(EarTouchEvent.EVENT_EAR_TOUCH_MODE_ENTER, -1, -1);
+        }
+        return false;
+    }
 
     /**
      * A native method that is implemented by the 'native-lib' native library,
@@ -88,7 +109,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
     private int first_checked_x, first_checked_y, last_checked_x, last_checked_y;
     private long check_start = 0;
 
-    private boolean earModeFlag = true;
+    private boolean earModeFlag = false;
 
     public void addEvent(int eventType, int x, int y) {
         final EarTouchEvent event = new EarTouchEvent(eventType, x, y);
@@ -114,8 +135,11 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
             Log.d("sensor", "" + az);
             if (Math.abs(az) > QUIT_SENSOR_THRESHOULD && earModeFlag)
             {
+                Log.d("hwjj", "quit");
+                mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
                 earModeFlag = false;
                 quitEarMode();
+                addEvent(EarTouchEvent.EVENT_EAR_TOUCH_MODE_EXIT, -1, -1);
             }
 
             double g = Math.sqrt(ax * ax + ay * ay);

@@ -6,8 +6,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -28,7 +30,9 @@ public class EarTouchServer extends Thread {
     public void run() {
         while (!hasFinished){
             try {
-                serverSocket = new ServerSocket(PORT);
+                serverSocket = new ServerSocket();
+                serverSocket.setReuseAddress(true);
+                serverSocket.bind(new InetSocketAddress(PORT));
                 Log.i("socketState", "listening");
                 socket = serverSocket.accept();
                 Log.i("socketState", "accepted");
