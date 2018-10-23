@@ -67,6 +67,14 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
             enterEarMode();
             addEvent(EarTouchEvent.EVENT_EAR_TOUCH_MODE_ENTER, -1, -1);
         }
+        if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP && earModeFlag)
+        {
+            Log.d("hwjj", "quit");
+            mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
+            earModeFlag = false;
+            quitEarMode();
+            addEvent(EarTouchEvent.EVENT_EAR_TOUCH_MODE_EXIT, -1, -1);
+        }
         return false;
     }
 
