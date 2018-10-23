@@ -9,12 +9,11 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketAddress;
 import java.util.LinkedList;
 import java.util.Queue;
 
 public class EarTouchServer extends Thread {
-    final int PORT = 11250;
+    final int PORT = 11258;
     public final Queue<EarTouchEvent> events;
     boolean hasFinished;
     ServerSocket serverSocket;

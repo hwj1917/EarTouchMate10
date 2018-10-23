@@ -61,7 +61,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
     public boolean onKeyEvent(KeyEvent event) {
         if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_DOWN && !earModeFlag)
         {
-            Log.d("hwjj", "enter");
+            Log.d("gesture", "enter");
             mTTS.speak("进入耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
             earModeFlag = true;
             enterEarMode();
@@ -69,7 +69,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
         }
         if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP && earModeFlag)
         {
-            Log.d("hwjj", "quit");
+            Log.d("gesture", "quit");
             mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
             earModeFlag = false;
             quitEarMode();
@@ -88,7 +88,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
     public native void enterEarMode();
 
     private final int CONTINUOUS_SPIN_TIME = 2000;
-    private final int QUIT_SENSOR_THRESHOULD = 8;
+    private final int QUIT_SENSOR_THRESHOULD = 12;
     private final int CHECK_TIME = 1000;
     private final int TOUCH_MODE_CHECK = 0;
     private final int TOUCH_MODE_CLICK = TOUCH_MODE_CHECK + 1;
@@ -143,7 +143,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
             Log.d("sensor", "" + az);
             if (Math.abs(az) > QUIT_SENSOR_THRESHOULD && earModeFlag)
             {
-                Log.d("hwjj", "quit");
+                Log.d("gesture", "quit");
                 mTTS.speak("退出耳朵模式", TextToSpeech.QUEUE_FLUSH, null, "out");
                 earModeFlag = false;
                 quitEarMode();
@@ -208,7 +208,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
 
             if (anticlkwise == 1)
             {
-                Log.d("hwjj", "clockwise");
+                Log.d("gesture", "clockwise");
                 addEvent(EarTouchEvent.EVENT_EAR_TOUCH_SPIN_CLKWISE, -1, -1);
                 spinFlag = true;
                 anticlkwise = 0;
@@ -217,7 +217,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
 
             if (clkwise == 1)
             {
-                Log.d("hwjj", "anticlockwise");
+                Log.d("gesture", "anticlockwise");
                 addEvent(EarTouchEvent.EVENT_EAR_TOUCH_SPIN_ANTICLKWISE, -1, -1);
                 spinFlag = true;
                 clkwise = 0;
@@ -245,12 +245,12 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
             {
                 if (dx > 0)
                 {
-                    Log.d("hwjj", "swipe right");
+                    Log.d("gesture", "swipe right");
                     addEvent(EarTouchEvent.EVENT_EAR_TOUCH_SWIPE_FORWARD, -1, -1);
                 }
                 else
                 {
-                    Log.d("hwjj", "swipe left");
+                    Log.d("gesture", "swipe left");
                     addEvent(EarTouchEvent.EVENT_EAR_TOUCH_SWIPE_BACKWARD, -1, -1);
                 }
             }
@@ -258,12 +258,12 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
             {
                 if (dy > 0)
                 {
-                    Log.d("hwjj", "swipe down");
+                    Log.d("gesture", "swipe down");
                     addEvent(EarTouchEvent.EVENT_EAR_TOUCH_SWIPE_DOWN, -1, -1);
                 }
                 else
                 {
-                    Log.d("hwjj", "swipe up");
+                    Log.d("gesture", "swipe up");
                     addEvent(EarTouchEvent.EVENT_EAR_TOUCH_SWIPE_UP, -1, -1);
                 }
             }
@@ -296,13 +296,13 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
                         addEvent(EarTouchEvent.EVENT_EAR_TOUCH_START, -1, -1);
                     }
                     if (x == -1 && y == -1) {
-                        Log.d("hwjj", "press");
+                        Log.d("gesture", "press");
                         touch_mode = TOUCH_MODE_PRESS;
                     } else if (x == -1 && y == 0) {
-                        Log.d("hwjj", "clockwise");
+                        Log.d("gesture", "clockwise");
                         touch_mode = TOUCH_MODE_SPIN;
                     } else if (x == 0 && y == -1) {
-                        Log.d("hwjj", "anticlockwise");
+                        Log.d("gesture", "anticlockwise");
                         touch_mode = TOUCH_MODE_SPIN;
                     } else if (checked > 0 && now - check_start > CHECK_TIME) {
                         if (spinFlag) {
@@ -310,11 +310,11 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
                         } else {
                             if (checkSwipe()) {
                                 touch_mode = TOUCH_MODE_EXPLORE;
-                                Log.d("hwjj", "explore");
+                                Log.d("gesture", "explore");
                                 addEvent(EarTouchEvent.EVENT_EAR_TOUCH_EXPLORE, x, y);
                             } else {
                                 touch_mode = TOUCH_MODE_LONG;
-                                Log.d("hwjj", "long");
+                                Log.d("gesture", "long");
                                 addEvent(EarTouchEvent.EVENT_EAR_TOUCH_LONG_PRESS, x, y);
                             }                            }
                             checked = 0;
@@ -323,7 +323,7 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
                 case TOUCH_MODE_PRESS:
                 case TOUCH_MODE_EXPLORE:
                     if (x == -1 && y == -1) {
-                        Log.d("hwjj", "press");
+                        Log.d("gesture", "press");
                         touch_mode = TOUCH_MODE_PRESS;
                     } else {
                         addEvent(EarTouchEvent.EVENT_EAR_TOUCH_EXPLORE, x, y);
@@ -331,10 +331,10 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
                     break;
                 case TOUCH_MODE_SPIN:
                     if (x == -1 && y == 0) {
-                        Log.d("hwjj", "clockwise");
+                        Log.d("gesture", "clockwise");
                         touch_mode = TOUCH_MODE_SPIN;
                     } else if (x == 0 && y == -1) {
-                        Log.d("hwjj", "anticlockwise");
+                        Log.d("gesture", "anticlockwise");
                         touch_mode = TOUCH_MODE_SPIN;
                     }
                     break;
@@ -395,12 +395,12 @@ public class EarTouchService extends AccessibilityService implements SensorEvent
                 e.printStackTrace();
             }
             if (clickState > 1) {
-                Log.d("hwjj", "double click");
+                Log.d("gesture", "double click");
                 addEvent(EarTouchEvent.EVENT_EAR_TOUCH_DOUBLE_TAP, -1, -1);
                 addEvent(EarTouchEvent.EVENT_EAR_TOUCH_FINISH, -1, -1);
             }
             else {
-                Log.d("hwjj", "click");
+                Log.d("gesture", "click");
                 addEvent(EarTouchEvent.EVENT_EAR_TOUCH_TAP, x, y);
                 addEvent(EarTouchEvent.EVENT_EAR_TOUCH_FINISH, -1, -1);
             }
